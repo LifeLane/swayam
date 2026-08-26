@@ -88,7 +88,7 @@ class AIRouter(
         val result = when (targetProviderType) {
             AIProviderType.LOCAL -> localProvider.generate(genReq)
             AIProviderType.PRIVATE_SERVER -> privateServerProvider.generate(genReq)
-            AIProviderType.CLOUD -> cloudProvider.generate(genReq)
+            AIProviderType.CLOUD, AIProviderType.HYBRID -> cloudProvider.generate(genReq)
             AIProviderType.DEMO -> MockAIProvider().generate(genReq)
         }
 
@@ -121,7 +121,7 @@ class AIRouter(
         return when (target) {
             AIProviderType.LOCAL -> localProvider.stream(genReq)
             AIProviderType.PRIVATE_SERVER -> privateServerProvider.stream(genReq)
-            AIProviderType.CLOUD -> cloudProvider.stream(genReq)
+            AIProviderType.CLOUD, AIProviderType.HYBRID -> cloudProvider.stream(genReq)
             AIProviderType.DEMO -> MockAIProvider().stream(genReq)
         }
     }
@@ -145,6 +145,7 @@ class AIRouter(
             AIProviderType.LOCAL -> AIProviderType.LOCAL
             AIProviderType.PRIVATE_SERVER -> if (request.privacyLevel != PrivacyLevel.LOCAL_ONLY) AIProviderType.PRIVATE_SERVER else AIProviderType.LOCAL
             AIProviderType.CLOUD -> if (request.privacyLevel == PrivacyLevel.PUBLIC && request.userConsent) AIProviderType.CLOUD else AIProviderType.LOCAL
+            AIProviderType.HYBRID -> if (request.privacyLevel != PrivacyLevel.LOCAL_ONLY && request.userConsent) AIProviderType.HYBRID else AIProviderType.LOCAL
             AIProviderType.DEMO -> AIProviderType.DEMO
         }
     }

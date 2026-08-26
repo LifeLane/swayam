@@ -54,7 +54,6 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val privacyState by edgeAI.privacy.state.collectAsStateWithLifecycle()
-    val isDemoMode by edgeAI.demo.isDemoMode.collectAsStateWithLifecycle()
     val memoryCount by edgeAI.memory.count.collectAsStateWithLifecycle(initialValue = 0)
     val latestMemories: List<MemoryEntity> by edgeAI.memory.activeMemories.collectAsStateWithLifecycle(initialValue = emptyList())
     val lastAgentResult by edgeAI.agent.lastResult.collectAsStateWithLifecycle()
@@ -122,9 +121,9 @@ fun HomeScreen(
         // 2. REUSABLE AI STATUS COMPONENT
         item {
             AIStatus(
-                providerType = if (isDemoMode) AIProviderType.DEMO else if (privacyState.cloudAiEnabled) AIProviderType.CLOUD else AIProviderType.LOCAL,
+                providerType = if (privacyState.cloudAiEnabled) AIProviderType.CLOUD else if (privacyState.privateServerEnabled) AIProviderType.PRIVATE_SERVER else AIProviderType.LOCAL,
                 isOffline = !privacyState.cloudAiEnabled && !privacyState.privateServerEnabled,
-                isDemo = isDemoMode,
+                isDemo = false,
                 hardwareAccelerator = "${specs.recommendedBackend.name} ACCELERATED",
                 onClick = onOpenOperatingCenter
             )

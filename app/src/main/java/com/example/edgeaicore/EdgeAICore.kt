@@ -396,13 +396,15 @@ class EdgeAICore private constructor(val context: Context) {
     }
 
     inner class ModelsSubsystem {
-        val list = modelManager.models
-        val provisioning: com.example.edgeaicore.core.models.ModelProvisioningManager get() = modelProvisioningManager
-        val provisioningProgress get() = modelProvisioningManager.progress
+        val manager: com.example.edgeaicore.core.models.LocalModelManager get() = this@EdgeAICore.modelManager
+        val modelManager: com.example.edgeaicore.core.models.LocalModelManager get() = this@EdgeAICore.modelManager
+        val list get() = this@EdgeAICore.modelManager.models
+        val provisioning: com.example.edgeaicore.core.models.ModelProvisioningManager get() = this@EdgeAICore.modelProvisioningManager
+        val provisioningProgress get() = this@EdgeAICore.modelProvisioningManager.progress
         suspend fun install(modelId: String, onProgress: (Float) -> Unit = {}): EdgeResult<EdgeModel> =
-            modelManager.installModel(modelId, onProgress)
-        fun remove(modelId: String) = modelManager.removeModel(modelId)
-        fun setEnabled(modelId: String, enabled: Boolean) = modelManager.setModelEnabled(modelId, enabled)
+            this@EdgeAICore.modelManager.installModel(modelId, onProgress)
+        fun remove(modelId: String) = this@EdgeAICore.modelManager.removeModel(modelId)
+        fun setEnabled(modelId: String, enabled: Boolean) = this@EdgeAICore.modelManager.setModelEnabled(modelId, enabled)
     }
 
     inner class VisionSubsystem {
@@ -450,6 +452,8 @@ class EdgeAICore private constructor(val context: Context) {
         val persona: com.example.edgeaicore.core.swayam.SwayamPersona get() = swayamCore.persona
         val personaState get() = personaManager.persona
         val translator: com.example.edgeaicore.core.swayam.SwayamTranslator get() = swayamCore.translator
+        val privateEngine: com.example.edgeaicore.core.swayam.PrivateEdgeEngine get() = swayamCore.privateEdgeEngine
+        val hybridEngine: com.example.edgeaicore.core.swayam.HybridEngine get() = swayamCore.hybridEngine
 
         fun setResponseStyle(style: com.example.edgeaicore.core.swayam.ResponseStyle) {
             personaManager.updateResponseStyle(style)

@@ -68,33 +68,10 @@ class PlaygroundRepository(private val context: Context) {
 
     private fun createDefaultSession(): PlaygroundSession {
         return PlaygroundSession(
-            title = "SWAYAM Primary Workspace",
+            title = "New Session",
             mode = PlaygroundMode.GENERAL,
             modelId = "gemma-2b-it-litert",
-            messages = listOf(
-                PlaygroundMessage(
-                    role = MessageRole.ASSISTANT,
-                    content = "### ⚡ SWAYAM Sovereign Playground Initialized\n\n" +
-                            "Welcome to your private interactive workspace for on-device reasoning, research, document intelligence, memory exploration, and autonomous agents.\n\n" +
-                            "```json\n{\n  \"engine\": \"LiteRT-LM On-Device Neural Engine\",\n  \"mode\": \"General / Research / Documents / Memory / Agents\",\n  \"privacy\": \"Zero Cloud Egress\",\n  \"context\": \"Active Context Engine\"\n}\n```\n\n" +
-                            "Select a mode above or ask any question to begin.",
-                    provider = AIProviderType.LOCAL,
-                    runtime = "LiteRT-LM On-Device Neural Engine",
-                    backend = ExecutionBackend.GPU,
-                    latencyMs = 5,
-                    tokensGenerated = 42,
-                    tokensPerSecond = 50.0,
-                    explanation = ExplanationRecord(
-                        featureName = "Playground Initialization",
-                        whatHappened = "Bootstrapped local sovereign workspace with verified local engine.",
-                        whyReason = "User opened SWAYAM Playground.",
-                        confidenceScore = 1.0f,
-                        dataSourcesUsed = listOf("SWAYAM Sovereign Core"),
-                        wasAiInvolved = true,
-                        providerType = AIProviderType.LOCAL
-                    )
-                )
-            )
+            messages = emptyList()
         )
     }
 

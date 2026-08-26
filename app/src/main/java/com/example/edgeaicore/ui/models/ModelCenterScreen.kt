@@ -238,17 +238,12 @@ fun ModelCenterScreen(
                         installProgress = if (isCurrentlyInstalling) installProgress else model.downloadProgress,
                         onInstall = {
                             installingModelId = model.id
-                            installProgress = 0.05f
+                            installProgress = 0.1f
                             coroutineScope.launch {
-                                // Simulate smooth step-by-step progress
-                                for (step in 1..10) {
-                                    delay(120)
-                                    installProgress = step / 10f
-                                }
                                 val result = edgeAI.models.install(model.id)
                                 installingModelId = null
                                 actionNotification = when (result) {
-                                    is com.example.edgeaicore.core.common.EdgeResult.Success -> "Model '${model.name}' installed and ready for local inference."
+                                    is com.example.edgeaicore.core.common.EdgeResult.Success -> "Model '${model.name}' verified, installed, and ready for local inference."
                                     is com.example.edgeaicore.core.common.EdgeResult.Failure -> "Installation failed: ${result.error.message}"
                                 }
                             }

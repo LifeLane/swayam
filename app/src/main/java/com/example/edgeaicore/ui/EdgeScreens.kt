@@ -117,7 +117,7 @@ fun EdgeAICoreApp(
                 },
                 actions = {
                     AIStatusPill(
-                        providerType = if (isDemoMode) AIProviderType.DEMO else AIProviderType.LOCAL
+                        providerType = AIProviderType.LOCAL
                     )
                     IconButton(
                         onClick = { showEngineModal = true },
@@ -127,16 +127,6 @@ fun EdgeAICoreApp(
                             imageVector = Icons.Default.DeveloperMode,
                             contentDescription = "AI Engine Runtime Inspector",
                             tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    IconButton(
-                        onClick = { edgeAI.demo.toggleDemoMode() },
-                        modifier = Modifier.testTag("demo_mode_toggle")
-                    ) {
-                        Icon(
-                            imageVector = if (isDemoMode) Icons.Default.PlayCircleFilled else Icons.Outlined.PlayCircleOutline,
-                            contentDescription = "Toggle Demo Mode",
-                            tint = if (isDemoMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },

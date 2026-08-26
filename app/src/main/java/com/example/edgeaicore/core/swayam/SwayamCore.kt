@@ -101,6 +101,15 @@ class SwayamCore(
         privacyEngine = privacyEngine,
         personaManager = personaManager
     )
+    val hybridEngine = HybridEngine(
+        context = context,
+        privateEdgeEngine = privateEdgeEngine,
+        memoryEngine = memoryEngine,
+        knowledgeSearchEngine = knowledgeSearchEngine,
+        geminiApiClient = GeminiApiClient(context),
+        privacyEngine = privacyEngine,
+        personaManager = personaManager
+    )
 
     suspend fun process(request: SwayamRequest): EdgeResult<SwayamResponse> = withContext(Dispatchers.IO) {
         val startTime = System.currentTimeMillis()
@@ -116,6 +125,11 @@ class SwayamCore(
                     latencyMs = 5
                 )
             )
+        }
+
+        // If explicitly requested HYBRID provider, delegate directly to HybridEngine
+        if (request.preferredProvider == AIProviderType.HYBRID) {
+            return@withContext hybridEngine.executeHybridInference(request)
         }
 
         // 1. Intent Classification
@@ -809,6 +823,13 @@ class SwayamCore(
     )
 
     fun stream(request: SwayamRequest): Flow<String> = flow {
+        if (request.preferredProvider == AIProviderType.HYBRID) {
+            hybridEngine.streamHybrid(request).collect { chunk ->
+                emit(chunk)
+            }
+            return@flow
+        }
+
         val sysPrompt = persona.buildSystemPrompt(
             capabilitiesSummary = SwayamCapabilitiesManifest.getSummaryText()
         )

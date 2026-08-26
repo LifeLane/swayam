@@ -103,6 +103,7 @@ class ModelProvisioningManager(
     }
 
     suspend fun runProvisioningDirect(forceRecheck: Boolean = false): ProvisioningProgress {
+        activeJob?.cancel()
         runProvisioningPipeline(forceRecheck)
         return _progress.value
     }
@@ -168,14 +169,19 @@ class ModelProvisioningManager(
 
         val targetModelId = if (specs.totalRamMb >= 3072) "gemma-2b-it-litert" else "tinyllama-1.1b-chat"
         val embeddingModelId = "all-minilm-l6-v2-embedding"
-        val targetModelInfo = modelManager.getModelInfo(targetModelId)
-            ?: ModelRegistry.DEFAULT_MODELS.first { it.id == targetModelId }
+        val isPreviouslyProvisioned = prefs.getBoolean("is_provisioned", false)
+        val activeTargetModelId = if (!forceRecheck && isPreviouslyProvisioned) {
+            prefs.getString("installed_model_id", targetModelId) ?: targetModelId
+        } else {
+            targetModelId
+        }
+        val targetModelInfo = modelManager.getModelInfo(activeTargetModelId)
+            ?: ModelRegistry.DEFAULT_MODELS.firstOrNull { it.id == activeTargetModelId }
+            ?: ModelRegistry.DEFAULT_MODELS.first()
         val targetModelName = targetModelInfo.name
 
         // 1. FAST SUBSEQUENT LAUNCH CHECK (< 50 ms)
-        val isPreviouslyProvisioned = prefs.getBoolean("is_provisioned", false)
-        val savedModelId = prefs.getString("installed_model_id", targetModelId) ?: targetModelId
-        val targetFile = File(modelsDirectory, "$savedModelId.bin")
+        val targetFile = File(modelsDirectory, "$activeTargetModelId.bin")
         val embeddingFile = File(modelsDirectory, "$embeddingModelId.tflite")
 
         if (isPreviouslyProvisioned && !forceRecheck && targetFile.exists() && targetFile.length() > 0) {
@@ -183,7 +189,7 @@ class ModelProvisioningManager(
                 stage = ProvisioningStage.CONFIGURING_RUNTIME,
                 currentStepText = "Loading local AI neural weights...",
                 progress = 0.90f,
-                activeModelId = savedModelId,
+                activeModelId = activeTargetModelId,
                 activeModelName = targetModelName,
                 selectedBackend = specs.recommendedBackend
             )
@@ -194,7 +200,7 @@ class ModelProvisioningManager(
                     stage = ProvisioningStage.READY,
                     currentStepText = "SWAYAM Local AI is active and 100% sovereign.",
                     progress = 1.0f,
-                    activeModelId = savedModelId,
+                    activeModelId = activeTargetModelId,
                     activeModelName = targetModelName,
                     selfTestPassed = true,
                     isFastLoaded = true,
@@ -303,7 +309,7 @@ class ModelProvisioningManager(
                 prompt = "You are testing the local SWAYAM runtime. Respond with READY.",
                 systemInstruction = "System validation check",
                 maxTokens = 16,
-                modelId = targetModelId
+                modelId = activeTargetModelId
             )
             val selfTestResponse = liteRTLMEngine.generate(selfTestRequest)
 
@@ -328,7 +334,7 @@ class ModelProvisioningManager(
             // STEP 8: PERSIST SUCCESSFUL PROVISIONING
             prefs.edit()
                 .putBoolean("is_provisioned", true)
-                .putString("installed_model_id", targetModelId)
+                .putString("installed_model_id", activeTargetModelId)
                 .putLong("provisioned_at", System.currentTimeMillis())
                 .apply()
 
@@ -336,7 +342,7 @@ class ModelProvisioningManager(
                 stage = ProvisioningStage.READY,
                 currentStepText = "SWAYAM Local AI is active and 100% sovereign.",
                 progress = 1.0f,
-                activeModelId = targetModelId,
+                activeModelId = activeTargetModelId,
                 activeModelName = targetModelName,
                 selfTestPassed = true,
                 isFastLoaded = false,

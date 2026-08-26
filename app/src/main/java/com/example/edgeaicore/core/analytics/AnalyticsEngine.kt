@@ -58,7 +58,7 @@ class LocalAnalyticsProvider : AnalyticsProvider {
     private val _events = MutableStateFlow<List<ProductEvent>>(emptyList())
     val events: StateFlow<List<ProductEvent>> = _events.asStateFlow()
 
-    private val _toolUsageHistory = MutableStateFlow<List<ToolUsageRecord>>(generateInitialSeedHistory())
+    private val _toolUsageHistory = MutableStateFlow<List<ToolUsageRecord>>(emptyList())
     val toolUsageHistory: StateFlow<List<ToolUsageRecord>> = _toolUsageHistory.asStateFlow()
 
     override fun trackEvent(event: ProductEvent) {

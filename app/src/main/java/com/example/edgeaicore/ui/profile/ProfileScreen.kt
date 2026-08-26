@@ -187,32 +187,6 @@ fun ProfileScreen(
             }
         }
 
-        // 5. DEMO SIMULATION MODE
-        item {
-            AppCard(backgroundColor = MaterialTheme.colorScheme.surface) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Demo Simulation Mode", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Text(
-                            text = "Injects sample multimodal perception memories and agent scenarios without hardware dependencies.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = isDemoMode,
-                        onCheckedChange = { edgeAI.demo.toggleDemoMode() },
-                        modifier = Modifier.testTag("switch_demo_mode")
-                    )
-                }
-            }
-        }
-
-
         // 5. NAVIGATION LINKS
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -21,6 +21,7 @@ enum class AIProviderType {
     LOCAL,
     PRIVATE_SERVER,
     CLOUD,
+    HYBRID,
     DEMO
 }
 

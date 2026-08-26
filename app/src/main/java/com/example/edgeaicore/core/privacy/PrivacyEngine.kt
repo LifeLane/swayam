@@ -136,7 +136,7 @@ class PrivacyEngine(private val context: Context) {
         userConsentGiven: Boolean
     ): Boolean {
         // If offline-only mode is active, strictly reject remote network calls
-        if (_dashboardState.value.offlineOnlyMode && (targetProvider == AIProviderType.CLOUD || targetProvider == AIProviderType.PRIVATE_SERVER)) {
+        if (_dashboardState.value.offlineOnlyMode && (targetProvider == AIProviderType.CLOUD || targetProvider == AIProviderType.PRIVATE_SERVER || targetProvider == AIProviderType.HYBRID)) {
             val record = PrivacyAuditRecord(
                 taskType = "OFFLINE_ONLY_BLOCKED",
                 declaredPrivacyLevel = privacyLevel,
@@ -163,7 +163,7 @@ class PrivacyEngine(private val context: Context) {
             taskType = "AI_INFERENCE_REQUEST",
             declaredPrivacyLevel = privacyLevel,
             targetProvider = targetProvider,
-            wasTransmittedRemotely = targetProvider == AIProviderType.PRIVATE_SERVER || targetProvider == AIProviderType.CLOUD,
+            wasTransmittedRemotely = targetProvider == AIProviderType.PRIVATE_SERVER || targetProvider == AIProviderType.CLOUD || targetProvider == AIProviderType.HYBRID,
             dataSummary = "PrivacyLevel=${privacyLevel.name}, Target=${targetProvider.name}, Consented=$userConsentGiven",
             passedVerification = isValid
         )
@@ -185,7 +185,7 @@ class PrivacyEngine(private val context: Context) {
                         totalRemoteInferences = _dashboardState.value.totalRemoteInferences + 1
                     )
                 }
-                AIProviderType.CLOUD -> {
+                AIProviderType.CLOUD, AIProviderType.HYBRID -> {
                     _dashboardState.value = _dashboardState.value.copy(
                         cloudAiLastUsed = now,
                         totalRemoteInferences = _dashboardState.value.totalRemoteInferences + 1

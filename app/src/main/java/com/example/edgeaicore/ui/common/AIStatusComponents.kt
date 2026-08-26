@@ -611,6 +611,7 @@ fun UniversalExplanationSheet(
                                         AIProviderType.LOCAL -> "SWAYAM Core (Local On-Device Runtime)"
                                         AIProviderType.PRIVATE_SERVER -> "Private LAN AI Server (Air-Gapped)"
                                         AIProviderType.CLOUD -> "Cloud Intelligence Provider (User Authorized)"
+                                        AIProviderType.HYBRID -> "SWAYAM Hybrid Intelligence (Edge + Cloud)"
                                         AIProviderType.DEMO -> "On-Device Neural Synthesizer"
                                     }
                                 )
