@@ -1,0 +1,234 @@
+name: Build & Release Automation
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+
+  pull_request:
+    branches:
+      - main
+      - master
+
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build_android:
+    name: Build APK & AAB
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # =========================================================
+      # 1. CHECKOUT PROJECT
+      # =========================================================
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+
+      # =========================================================
+      # 2. JAVA
+      # =========================================================
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: gradle
+
+
+      # =========================================================
+      # 3. SETUP GRADLE
+      # =========================================================
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+
+      # =========================================================
+      # 4. CHECK GRADLE
+      # =========================================================
+
+      - name: Check Gradle Setup
+        run: |
+          echo "Checking Gradle installation..."
+
+          if [ -f "./gradlew" ]; then
+            echo "Gradle wrapper found."
+            chmod +x ./gradlew
+            ./gradlew --version
+          else
+            echo "Gradle wrapper not found. Using installed Gradle."
+            gradle --version
+          fi
+
+
+      # =========================================================
+      # 5. RESTORE PERMANENT RELEASE SIGNING KEY
+      # =========================================================
+
+      - name: Setup Permanent Release Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+        run: |
+          echo "Validating release signing credentials..."
+
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::KEYSTORE_BASE64 secret is missing. Release builds require a permanent upload keystore configured in repository secrets."
+            exit 1
+          fi
+
+          if [ -z "$STORE_PASSWORD" ]; then
+            echo "::error::STORE_PASSWORD secret is missing. Keystore password is required."
+            exit 1
+          fi
+
+          if [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::KEY_PASSWORD secret is missing. Key alias password is required."
+            exit 1
+          fi
+
+          echo "Decoding permanent release keystore..."
+          echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
+
+          if [ ! -s "my-upload-key.jks" ]; then
+            echo "::error::Decoded keystore file is empty or corrupted."
+            exit 1
+          fi
+
+          echo "Permanent release keystore successfully prepared."
+
+
+      # =========================================================
+      # 6. BUILD DEBUG APK
+      # =========================================================
+
+      - name: Build Debug APK
+        run: |
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleDebug --no-daemon
+          else
+            gradle assembleDebug --no-daemon
+          fi
+
+
+      # =========================================================
+      # 7. BUILD RELEASE APK
+      # =========================================================
+
+      - name: Build Release APK
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+        run: |
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleRelease --no-daemon
+          else
+            gradle assembleRelease --no-daemon
+          fi
+
+
+      # =========================================================
+      # 8. BUILD RELEASE AAB (GOOGLE PLAY BUNDLE)
+      # =========================================================
+
+      - name: Build Release AAB
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+        run: |
+          if [ -f "./gradlew" ]; then
+            ./gradlew bundleRelease --no-daemon
+          else
+            gradle bundleRelease --no-daemon
+          fi
+
+
+      # =========================================================
+      # 9. SHOW OUTPUTS
+      # =========================================================
+
+      - name: Show Build Outputs
+        if: always()
+
+        run: |
+          echo ""
+          echo "=========================================="
+          echo "APK FILES"
+          echo "=========================================="
+
+          find app/build/outputs/apk \
+            -type f \
+            -name "*.apk" \
+            -print 2>/dev/null || true
+
+          echo ""
+          echo "=========================================="
+          echo "AAB FILES"
+          echo "=========================================="
+
+          find app/build/outputs/bundle \
+            -type f \
+            -name "*.aab" \
+            -print 2>/dev/null || true
+
+
+      # =========================================================
+      # 10. UPLOAD APK ARTIFACT
+      # =========================================================
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: swayam-gpt-apk
+          path: app/build/outputs/apk/**/*.apk
+          retention-days: 30
+          if-no-files-found: error
+
+
+      # =========================================================
+      # 11. UPLOAD AAB ARTIFACT (PLAY STORE READY)
+      # =========================================================
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: swayam-gpt-aab
+          path: app/build/outputs/bundle/**/*.aab
+          retention-days: 30
+          if-no-files-found: error
+
+
+      # =========================================================
+      # 12. CLEAN SIGNING KEY (ALWAYS RUNS)
+      # =========================================================
+
+      - name: Clean Signing Key
+        if: always()
+
+        run: |
+          echo "Securely removing temporary keystore from runner..."
+          rm -f my-upload-key.jks
