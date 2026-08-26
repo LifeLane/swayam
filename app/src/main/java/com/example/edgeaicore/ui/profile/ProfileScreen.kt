@@ -46,7 +46,6 @@ fun ProfileScreen(
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val isDemoMode by edgeAI.demo.isDemoMode.collectAsStateWithLifecycle()
     val currentTier by edgeAI.billing.currentTier.collectAsStateWithLifecycle()
     val specs = remember { edgeAI.diagnostics.specs() }
     val currentThemeMode = LocalThemeMode.current

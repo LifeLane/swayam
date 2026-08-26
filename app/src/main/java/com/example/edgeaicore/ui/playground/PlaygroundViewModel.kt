@@ -76,11 +76,14 @@ class PlaygroundViewModel(
     fun refreshContextState() {
         viewModelScope.launch {
             val specs = edgeAI.diagnostics.specs()
+            val installedModel = edgeAI.models.modelManager.getInstalledModels().firstOrNull()
             _state.update { current ->
+                val sessionModel = current.activeSession?.modelId?.takeIf { it.isNotEmpty() }
+                val activeModel = sessionModel ?: installedModel?.name ?: "No Local Model Installed"
                 current.copy(
                     contextState = PlaygroundContextState(
                         activeMode = current.activeMode,
-                        activeModelName = current.activeSession?.modelId ?: "gemma-2b-it-litert",
+                        activeModelName = activeModel,
                         isMemoryActive = true,
                         isRagActive = true,
                         activeSourcesCount = current.activeSession?.messages?.lastOrNull()?.sources?.size ?: 0,

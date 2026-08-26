@@ -139,6 +139,7 @@ jobs:
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'upload' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
         run: |
@@ -157,6 +158,7 @@ jobs:
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'upload' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
         run: |

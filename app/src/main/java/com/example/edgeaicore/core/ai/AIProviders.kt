@@ -83,27 +83,3 @@ class CloudFallbackAIProvider(
         return cloudProvider.stream(request)
     }
 }
-
-class MockAIProvider : AIProvider {
-    override val providerType: AIProviderType = AIProviderType.DEMO
-
-    override suspend fun isAvailable(): Boolean = true
-
-    override suspend fun generate(request: GenerationRequest): EdgeResult<GenerationResponse> {
-        return EdgeResult.Success(
-            GenerationResponse(
-                text = "[DEMO AI] Simulated inference output for development: '${request.prompt}'",
-                model = "demo-mock-v1",
-                latencyMs = 12,
-                tokensGenerated = 18,
-                tokensPerSecond = 150.0,
-                provider = AIProviderType.DEMO,
-                source = "Mock Development Provider"
-            )
-        )
-    }
-
-    override fun stream(request: GenerationRequest): Flow<String> = flow {
-        emit("[DEMO AI] Simulated response stream.")
-    }
-}

@@ -28,7 +28,6 @@ import com.example.edgeaicore.ui.automation.RoutinesScreen
 import com.example.edgeaicore.ui.benchmark.BenchmarkScreen
 import com.example.edgeaicore.ui.capture.CaptureScreen
 import com.example.edgeaicore.ui.common.UniversalExplanationSheet
-import com.example.edgeaicore.ui.console.ChatConsoleFullScreen
 import com.example.edgeaicore.ui.document.DocumentIntelligenceScreen
 import com.example.edgeaicore.ui.home.HomeScreen
 import com.example.edgeaicore.ui.memory.MemoryDetailSheet
@@ -60,7 +59,6 @@ enum class MainDestination(
 }
 
 sealed class SubDestination {
-    data class Ask(val initialPrompt: String) : SubDestination()
     object Capture : SubDestination()
     object PrivacyCenter : SubDestination()
     object ModelCenter : SubDestination()
@@ -84,23 +82,25 @@ fun AppShell(
     var selectedMemoryForDetail by remember { mutableStateOf<MemoryEntity?>(null) }
     var activeExplanation by remember { mutableStateOf<ExplanationRecord?>(null) }
     var showDeveloperModal by remember { mutableStateOf(false) }
-    var isChatConsoleOpen by remember { mutableStateOf(false) }
-    var chatConsoleInitialPrompt by remember { mutableStateOf<String?>(null) }
+
+    val playgroundViewModel = remember { PlaygroundViewModel(edgeAI.context, edgeAI) }
 
     val openUnifiedConsole: (String?) -> Unit = { prompt ->
-        chatConsoleInitialPrompt = prompt
-        isChatConsoleOpen = true
+        if (!prompt.isNullOrBlank()) {
+            playgroundViewModel.sendMessage(prompt)
+        }
+        currentMainDestination = MainDestination.PLAYGROUND
+        currentSubDestination = null
     }
 
     var agentInitialGoal by remember { mutableStateOf<String?>(null) }
-    val playgroundViewModel = remember { PlaygroundViewModel(edgeAI.context, edgeAI) }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val isWideScreen = maxWidth > 600.dp
 
         Row(modifier = Modifier.fillMaxSize()) {
             // Tablet / Foldable Navigation Rail
-            if (isWideScreen && currentSubDestination == null && !isChatConsoleOpen) {
+            if (isWideScreen && currentSubDestination == null) {
                 NavigationRail(
                     modifier = Modifier.widthIn(min = 80.dp)
                 ) {
@@ -119,22 +119,6 @@ fun AppShell(
                             modifier = Modifier.testTag("nav_rail_${destination.name.lowercase()}")
                         )
                     }
-
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    // Wide screen Chat Console Quick Button
-                    IconButton(
-                        onClick = { isChatConsoleOpen = true },
-                        modifier = Modifier
-                            .padding(bottom = 16.dp)
-                            .testTag("wide_chat_console_btn")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ChatBubbleOutline,
-                            contentDescription = "Open Chat Console",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
             }
 
@@ -142,111 +126,23 @@ fun AppShell(
             Scaffold(
                 modifier = Modifier.weight(1f),
                 bottomBar = {
-                    if (currentSubDestination == null && !isChatConsoleOpen) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+                    if (currentSubDestination == null && !isWideScreen) {
+                        NavigationBar(
+                            modifier = Modifier.testTag("main_bottom_nav")
                         ) {
-                            // Dedicated Sleek Chat Console Tab Above Navigation
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 6.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .clickable { isChatConsoleOpen = true }
-                                    .testTag("chat_console_tab_btn"),
-                                shape = RoundedCornerShape(14.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-                                shadowElevation = 3.dp
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(30.dp)
-                                                .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.primary),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.AutoAwesome,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onPrimary,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                        Column {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                Text(
-                                                    text = "SWAYAM Neural Console",
-                                                    style = MaterialTheme.typography.labelLarge,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                                )
-                                                Surface(
-                                                    shape = RoundedCornerShape(4.dp),
-                                                    color = LocalAIGreen.copy(alpha = 0.2f)
-                                                ) {
-                                                    Text(
-                                                        text = "ON-DEVICE",
-                                                        fontSize = 8.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = LocalAIGreen,
-                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                                    )
-                                                }
-                                            }
-                                            Text(
-                                                text = "Swayam Control • Rich Markdown, Codes, Charts & Gateways",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
-                                                fontSize = 10.sp
-                                            )
-                                        }
-                                    }
-
-                                    Icon(
-                                        imageVector = Icons.Default.OpenInFull,
-                                        contentDescription = "Open Full Screen Console",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-
-                            if (!isWideScreen) {
-                                NavigationBar(
-                                    modifier = Modifier.testTag("main_bottom_nav")
-                                ) {
-                                    MainDestination.values().forEach { destination ->
-                                        NavigationBarItem(
-                                            selected = currentMainDestination == destination,
-                                            onClick = { currentMainDestination = destination },
-                                            icon = {
-                                                Icon(
-                                                    imageVector = if (currentMainDestination == destination) destination.selectedIcon else destination.unselectedIcon,
-                                                    contentDescription = destination.title
-                                                )
-                                            },
-                                            label = { Text(destination.title) },
-                                            modifier = Modifier.testTag("nav_item_${destination.name.lowercase()}")
+                            MainDestination.values().forEach { destination ->
+                                NavigationBarItem(
+                                    selected = currentMainDestination == destination,
+                                    onClick = { currentMainDestination = destination },
+                                    icon = {
+                                        Icon(
+                                            imageVector = if (currentMainDestination == destination) destination.selectedIcon else destination.unselectedIcon,
+                                            contentDescription = destination.title
                                         )
-                                    }
-                                }
+                                    },
+                                    label = { Text(destination.title) },
+                                    modifier = Modifier.testTag("nav_item_${destination.name.lowercase()}")
+                                )
                             }
                         }
                     }
@@ -266,14 +162,6 @@ fun AppShell(
                         val sub = currentSubDestination
                         if (sub != null) {
                             when (sub) {
-                                is SubDestination.Ask -> {
-                                    ChatConsoleFullScreen(
-                                        edgeAI = edgeAI,
-                                        initialPrompt = sub.initialPrompt,
-                                        onClose = { currentSubDestination = null },
-                                        onShowExplanation = { activeExplanation = it }
-                                    )
-                                }
                                 is SubDestination.Capture -> {
                                     CaptureScreen(
                                         edgeAI = edgeAI,
@@ -352,8 +240,7 @@ fun AppShell(
                                     HomeScreen(
                                         edgeAI = edgeAI,
                                         onNavigateToAsk = { prompt ->
-                                            if (prompt.isNotBlank()) playgroundViewModel.sendMessage(prompt)
-                                            currentMainDestination = MainDestination.PLAYGROUND
+                                            openUnifiedConsole(prompt)
                                         },
                                         onNavigateToCapture = { currentSubDestination = SubDestination.Capture },
                                         onNavigateToMemory = { currentMainDestination = MainDestination.MEMORY },
@@ -381,8 +268,7 @@ fun AppShell(
                                     MemoryScreen(
                                         edgeAI = edgeAI,
                                         onNavigateToAskMemory = { prompt ->
-                                            if (prompt.isNotBlank()) playgroundViewModel.sendMessage(prompt)
-                                            currentMainDestination = MainDestination.PLAYGROUND
+                                            openUnifiedConsole(prompt)
                                         },
                                         onSelectMemory = { memory -> selectedMemoryForDetail = memory }
                                     )
@@ -422,19 +308,6 @@ fun AppShell(
                 }
             }
         }
-    }
-
-    // Full Screen SWAYAM Chat Console Overlay
-    if (isChatConsoleOpen) {
-        ChatConsoleFullScreen(
-            edgeAI = edgeAI,
-            initialPrompt = chatConsoleInitialPrompt,
-            onClose = {
-                isChatConsoleOpen = false
-                chatConsoleInitialPrompt = null
-            },
-            onShowExplanation = { activeExplanation = it }
-        )
     }
 
     // Memory Detail Bottom Sheet

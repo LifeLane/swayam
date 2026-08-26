@@ -28,7 +28,6 @@ import com.example.edgeaicore.core.database.DataGateway
 import com.example.edgeaicore.core.database.DataPermissionManager
 import com.example.edgeaicore.core.database.DatabaseEngine
 import com.example.edgeaicore.core.database.EdgeDatabase
-import com.example.edgeaicore.core.demo.DemoEngine
 import com.example.edgeaicore.core.diagnostics.DeviceCapabilityManager
 import com.example.edgeaicore.core.diagnostics.DiagnosticsMetrics
 import com.example.edgeaicore.core.diagnostics.PerformanceMonitor
@@ -243,7 +242,6 @@ class EdgeAICore private constructor(val context: Context) {
     val preferences = PreferenceEngine(context)
     val notifications = LocalNotificationProvider(context)
     val analytics = LocalAnalyticsProvider()
-    val demo = DemoEngine()
 
     init {
         // 1. Register Default Native Tools

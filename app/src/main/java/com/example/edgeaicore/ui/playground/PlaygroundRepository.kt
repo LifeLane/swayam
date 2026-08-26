@@ -70,7 +70,7 @@ class PlaygroundRepository(private val context: Context) {
         return PlaygroundSession(
             title = "New Session",
             mode = PlaygroundMode.GENERAL,
-            modelId = "gemma-2b-it-litert",
+            modelId = "",
             messages = emptyList()
         )
     }

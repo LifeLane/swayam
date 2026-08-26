@@ -150,13 +150,12 @@ class PrivacyEngine(private val context: Context) {
         }
 
         val isValid = when (privacyLevel) {
-            PrivacyLevel.LOCAL_ONLY -> targetProvider == AIProviderType.LOCAL || targetProvider == AIProviderType.DEMO
-            PrivacyLevel.SENSITIVE -> (targetProvider == AIProviderType.LOCAL || targetProvider == AIProviderType.DEMO) ||
+            PrivacyLevel.LOCAL_ONLY -> targetProvider == AIProviderType.LOCAL
+            PrivacyLevel.SENSITIVE -> targetProvider == AIProviderType.LOCAL ||
                     (targetProvider == AIProviderType.PRIVATE_SERVER && _dashboardState.value.privateServerEnabled && userConsentGiven)
             PrivacyLevel.PRIVATE -> targetProvider == AIProviderType.LOCAL ||
-                    (targetProvider == AIProviderType.PRIVATE_SERVER && _dashboardState.value.privateServerEnabled) ||
-                    targetProvider == AIProviderType.DEMO
-            PrivacyLevel.PUBLIC -> if (_dashboardState.value.offlineOnlyMode) (targetProvider == AIProviderType.LOCAL || targetProvider == AIProviderType.DEMO) else true
+                    (targetProvider == AIProviderType.PRIVATE_SERVER && _dashboardState.value.privateServerEnabled)
+            PrivacyLevel.PUBLIC -> if (_dashboardState.value.offlineOnlyMode) targetProvider == AIProviderType.LOCAL else true
         }
 
         val record = PrivacyAuditRecord(
@@ -191,7 +190,6 @@ class PrivacyEngine(private val context: Context) {
                         totalRemoteInferences = _dashboardState.value.totalRemoteInferences + 1
                     )
                 }
-                AIProviderType.DEMO -> {}
             }
         }
 

@@ -14,6 +14,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -103,7 +104,7 @@ class ModelProvisioningManager(
     }
 
     suspend fun runProvisioningDirect(forceRecheck: Boolean = false): ProvisioningProgress {
-        activeJob?.cancel()
+        activeJob?.cancelAndJoin()
         runProvisioningPipeline(forceRecheck)
         return _progress.value
     }

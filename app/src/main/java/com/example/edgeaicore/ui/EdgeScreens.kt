@@ -69,7 +69,6 @@ fun EdgeAICoreApp(
     var selectedTab by remember { mutableStateOf(CoreNavigationTab.HUB) }
     var activeExplanation by remember { mutableStateOf<ExplanationRecord?>(null) }
     var showEngineModal by remember { mutableStateOf(false) }
-    val isDemoMode by edgeAI.demo.isDemoMode.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

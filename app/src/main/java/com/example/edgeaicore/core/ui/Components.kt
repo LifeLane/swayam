@@ -404,7 +404,6 @@ fun AIStatusPill(
         AIProviderType.PRIVATE_SERVER -> Quad("PRIVATE AI", PrivateServerAmberContainer, PrivateServerAmber, Icons.Default.Dns)
         AIProviderType.CLOUD -> Quad("CLOUD AI", CloudAIPurpleContainer, CloudAIPurple, Icons.Default.Cloud)
         AIProviderType.HYBRID -> Quad("HYBRID AI", MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, Icons.Default.Share)
-        AIProviderType.DEMO -> Quad("DEMO ACTIVE", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer, Icons.Default.PlayArrow)
     }
 
     Surface(
