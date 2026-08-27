@@ -134,7 +134,7 @@ class DeviceCapabilityManager(private val context: Context) {
     }
 
     private fun detectNpuSupport(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val soc = (Build.SOC_MODEL ?: "").lowercase()
             soc.contains("tensor") || soc.contains("snapdragon") || soc.contains("dimensity") || soc.contains("exynos")
         } else {
