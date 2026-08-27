@@ -183,7 +183,8 @@ class ModelProvisioningManager(
         val targetModelName = targetModelInfo.name
 
         // 1. FAST SUBSEQUENT LAUNCH CHECK (< 50 ms)
-        val targetFile = File(modelsDirectory, "$activeTargetModelId.bin")
+        val targetExt = if (targetModelInfo.downloadUrl.contains(".gguf", ignoreCase = true)) "gguf" else "bin"
+        val targetFile = File(modelsDirectory, "$activeTargetModelId.$targetExt")
         val embeddingFile = File(modelsDirectory, "$embeddingModelId.tflite")
 
         if (isPreviouslyProvisioned && !forceRecheck && targetFile.exists() && targetFile.length() > 0) {

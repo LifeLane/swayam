@@ -93,6 +93,7 @@ class EdgeAICore private constructor(val context: Context) {
     internal val deviceCapManager = DeviceCapabilityManager(context)
     internal val perfMonitor = PerformanceMonitor(context)
     internal val modelManager = LocalModelManager(context)
+    internal val modelHubService = com.example.edgeaicore.core.models.hub.ModelHubService(context)
     internal val liteRTLMEngine = LiteRTLMEngine(context)
     internal val modelProvisioningManager = com.example.edgeaicore.core.models.ModelProvisioningManager(
         context = context,
@@ -394,11 +395,13 @@ class EdgeAICore private constructor(val context: Context) {
     inner class ModelsSubsystem {
         val manager: com.example.edgeaicore.core.models.LocalModelManager get() = this@EdgeAICore.modelManager
         val modelManager: com.example.edgeaicore.core.models.LocalModelManager get() = this@EdgeAICore.modelManager
+        val hub: com.example.edgeaicore.core.models.hub.ModelHubService get() = this@EdgeAICore.modelHubService
         val list get() = this@EdgeAICore.modelManager.models
         val provisioning: com.example.edgeaicore.core.models.ModelProvisioningManager get() = this@EdgeAICore.modelProvisioningManager
         val provisioningProgress get() = this@EdgeAICore.modelProvisioningManager.progress
         suspend fun install(modelId: String, onProgress: (Float) -> Unit = {}): EdgeResult<EdgeModel> =
             this@EdgeAICore.modelManager.installModel(modelId, onProgress)
+        fun registerRemote(model: EdgeModel): EdgeModel = this@EdgeAICore.modelManager.registerRemoteModel(model)
         fun remove(modelId: String) = this@EdgeAICore.modelManager.removeModel(modelId)
         fun setEnabled(modelId: String, enabled: Boolean) = this@EdgeAICore.modelManager.setModelEnabled(modelId, enabled)
     }

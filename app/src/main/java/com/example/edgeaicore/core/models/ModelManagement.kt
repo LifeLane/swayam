@@ -74,22 +74,90 @@ data class EdgeModel(
 }
 
 /**
- * Verified catalog of Edge Models ready for LiteRT & on-device pipelines.
- * All download URLs point to genuine downloadable binary/task/tflite artifacts.
+ * Verified catalog of Edge Models ready for LiteRT, GGUF, and on-device pipelines.
+ * All download URLs point to genuine downloadable binary/task/tflite/gguf artifacts.
  */
 object ModelRegistry {
     val DEFAULT_MODELS = listOf(
         EdgeModel(
+            id = "smollm-135m-instruct",
+            name = "SmolLM 135M Instruct (Ultra-Fast Mobile LLM)",
+            version = "1.0.0",
+            sizeBytes = 145_000_000L, // ~145 MB
+            type = ModelType.LITERT_LM,
+            capabilities = setOf(ModelCapability.TEXT, ModelCapability.CHAT, ModelCapability.REASONING),
+            minimumRamMb = 512L,
+            preferredBackend = ExecutionBackend.GPU,
+            downloadUrl = "https://huggingface.co/bartowski/SmolLM-135M-Instruct-GGUF/resolve/main/SmolLM-135M-Instruct-Q4_K_M.gguf",
+            checksum = "",
+            license = "Apache-2.0",
+            isInstalled = false,
+            isEnabled = false,
+            localPath = null,
+            status = ModelStatus.NOT_INSTALLED
+        ),
+        EdgeModel(
+            id = "qwen2.5-0.5b-instruct",
+            name = "Qwen 2.5 0.5B Instruct (Mobile Quantized)",
+            version = "2.5.0",
+            sizeBytes = 398_000_000L, // ~398 MB
+            type = ModelType.LITERT_LM,
+            capabilities = setOf(ModelCapability.TEXT, ModelCapability.CHAT, ModelCapability.REASONING),
+            minimumRamMb = 1024L,
+            preferredBackend = ExecutionBackend.GPU,
+            downloadUrl = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+            checksum = "",
+            license = "Apache-2.0",
+            isInstalled = false,
+            isEnabled = false,
+            localPath = null,
+            status = ModelStatus.NOT_INSTALLED
+        ),
+        EdgeModel(
+            id = "llama3.2-1b-instruct",
+            name = "Llama 3.2 1B Instruct (Mobile LLM)",
+            version = "3.2.0",
+            sizeBytes = 780_000_000L, // ~780 MB
+            type = ModelType.LITERT_LM,
+            capabilities = setOf(ModelCapability.TEXT, ModelCapability.CHAT, ModelCapability.SUMMARIZATION, ModelCapability.REASONING),
+            minimumRamMb = 1536L,
+            preferredBackend = ExecutionBackend.GPU,
+            downloadUrl = "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+            checksum = "",
+            license = "Llama 3.2 Community License",
+            isInstalled = false,
+            isEnabled = false,
+            localPath = null,
+            status = ModelStatus.NOT_INSTALLED
+        ),
+        EdgeModel(
+            id = "tinyllama-1.1b-chat",
+            name = "TinyLlama 1.1B Chat v1.0",
+            version = "1.0.0",
+            sizeBytes = 669_000_000L, // ~669 MB
+            type = ModelType.LITERT_LM,
+            capabilities = setOf(ModelCapability.TEXT, ModelCapability.CHAT),
+            minimumRamMb = 1024L,
+            preferredBackend = ExecutionBackend.GPU,
+            downloadUrl = "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
+            checksum = "",
+            license = "Apache-2.0",
+            isInstalled = false,
+            isEnabled = false,
+            localPath = null,
+            status = ModelStatus.NOT_INSTALLED
+        ),
+        EdgeModel(
             id = "gemma-2b-it-litert",
-            name = "Gemma 2B IT (LiteRT-LM)",
+            name = "Gemma 2B IT (LiteRT-LM / GGUF)",
             version = "2.0.0",
-            sizeBytes = 1_400_000_000L, // ~1.4 GB quantized INT4
+            sizeBytes = 1_650_000_000L, // ~1.65 GB quantized INT4
             type = ModelType.LITERT_LM,
             capabilities = setOf(ModelCapability.TEXT, ModelCapability.CHAT, ModelCapability.SUMMARIZATION, ModelCapability.REASONING),
             minimumRamMb = 2048L,
             preferredBackend = ExecutionBackend.GPU,
-            downloadUrl = "https://storage.googleapis.com/mediapipe-models/llm_inference/gemma-2b-it-cpu-int4/float16/latest/gemma-2b-it-cpu-int4.bin",
-            checksum = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            downloadUrl = "https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf",
+            checksum = "",
             license = "Gemma Terms of Use",
             isInstalled = false,
             isEnabled = false,
@@ -257,11 +325,13 @@ class LocalModelManager(private val context: Context) {
         val currentList = _models.value.toMutableList()
         val updatedList = currentList.map { model ->
             val binFile = File(modelsDirectory, "${model.id}.bin")
+            val ggufFile = File(modelsDirectory, "${model.id}.gguf")
             val tfliteFile = File(modelsDirectory, "${model.id}.tflite")
             val taskFile = File(modelsDirectory, "${model.id}.task")
 
             val existingFile = when {
                 binFile.exists() && binFile.length() > 0 -> binFile
+                ggufFile.exists() && ggufFile.length() > 0 -> ggufFile
                 tfliteFile.exists() && tfliteFile.length() > 0 -> tfliteFile
                 taskFile.exists() && taskFile.length() > 0 -> taskFile
                 else -> null
@@ -283,6 +353,20 @@ class LocalModelManager(private val context: Context) {
             }
         }
         _models.value = updatedList
+    }
+
+    /**
+     * Registers a remote model (e.g. from Hugging Face or Ollama) dynamically in the local model list.
+     */
+    fun registerRemoteModel(model: EdgeModel): EdgeModel {
+        val existing = getModelInfo(model.id)
+        if (existing != null) {
+            return existing
+        }
+        val current = _models.value.toMutableList()
+        current.add(model)
+        _models.value = current
+        return model
     }
 
     fun getInstalledModels(): List<EdgeModel> {
@@ -312,10 +396,14 @@ class LocalModelManager(private val context: Context) {
     suspend fun installModel(modelId: String, onProgress: (Float) -> Unit = {}): EdgeResult<EdgeModel> = withContext(Dispatchers.IO) {
         val model = getModelInfo(modelId) ?: return@withContext EdgeResult.Failure(EdgeAIError.ModelUnavailable(modelId))
         
-        val extension = when (model.type) {
-            ModelType.LITERT_LM -> "bin"
-            ModelType.MEDIAPIPE_TASK -> "task"
-            ModelType.EMBEDDING_VECTOR, ModelType.LITERT_VISION -> "tflite"
+        val extension = when {
+            model.downloadUrl.contains(".gguf", ignoreCase = true) -> "gguf"
+            model.downloadUrl.contains(".task", ignoreCase = true) -> "task"
+            model.downloadUrl.contains(".tflite", ignoreCase = true) -> "tflite"
+            model.type == ModelType.LITERT_LM -> "bin"
+            model.type == ModelType.MEDIAPIPE_TASK -> "task"
+            model.type == ModelType.EMBEDDING_VECTOR || model.type == ModelType.LITERT_VISION -> "tflite"
+            else -> "bin"
         }
         val targetFile = File(modelsDirectory, "${model.id}.$extension")
 
@@ -351,13 +439,15 @@ class LocalModelManager(private val context: Context) {
             var redirectCount = 0
             var conn: HttpURLConnection? = null
 
-            while (redirectCount < 5) {
+            while (redirectCount < 6) {
                 val url = URL(currentUrlStr)
                 conn = url.openConnection() as HttpURLConnection
                 conn.connectTimeout = 30000
                 conn.readTimeout = 60000
                 conn.instanceFollowRedirects = true
                 conn.requestMethod = "GET"
+                conn.setRequestProperty("User-Agent", "SWAYAM-EdgeAI/3.0.2 (Android Mobile; ARM64)")
+                conn.setRequestProperty("Accept", "*/*")
                 conn.connect()
 
                 val status = conn.responseCode
@@ -381,7 +471,7 @@ class LocalModelManager(private val context: Context) {
                 if (tmpFile.exists()) tmpFile.delete()
                 updateModelStatus(modelId, ModelStatus.ERROR, 0f)
                 return@withContext EdgeResult.Failure(
-                    EdgeAIError.NetworkError("Failed to connect to model server (HTTP ${conn?.responseCode ?: "ERR"})")
+                    EdgeAIError.NetworkError("Failed to connect to model server (HTTP ${conn?.responseCode ?: "ERR"}). Please check internet connectivity.")
                 )
             }
 
