@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.edgeaicore.EdgeAICore
 import com.example.edgeaicore.ui.common.AppCard
+import com.example.edgeaicore.ui.common.ModuleComingSoonBanner
 import com.example.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -136,6 +137,15 @@ fun RoutinesScreen(
             contentPadding = PaddingValues(top = 8.dp, bottom = 40.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 0. COMING SOON BANNER
+            item {
+                ModuleComingSoonBanner(
+                    moduleName = "Proactive Autonomous Routines",
+                    tagline = "Time-of-day briefings, idle background audits, and automated check-ins",
+                    icon = Icons.Default.Schedule,
+                    accentColor = PrivateServerAmber
+                )
+            }
             // 1. BANNER
             item {
                 Surface(

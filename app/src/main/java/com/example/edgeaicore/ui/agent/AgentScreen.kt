@@ -44,6 +44,7 @@ import com.example.edgeaicore.core.common.EdgeResult
 import com.example.edgeaicore.core.explanation.ExplanationRecord
 import com.example.edgeaicore.core.policy.ToolActionProposal
 import com.example.edgeaicore.ui.common.AppCard
+import com.example.edgeaicore.ui.common.ModuleComingSoonBanner
 import com.example.edgeaicore.ui.common.ResponseActionToolbar
 import com.example.edgeaicore.ui.common.RichMessageContent
 import com.example.ui.theme.*
@@ -241,6 +242,16 @@ fun AgentScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+
+            // 1.1 COMING SOON ROADMAP BANNER
+            item {
+                ModuleComingSoonBanner(
+                    moduleName = "Sovereign Autonomous Agent Engine",
+                    tagline = "Background planners, multi-step sub-agents, and cron triggers",
+                    icon = Icons.Default.SmartToy,
+                    accentColor = GoogleBlue
+                )
             }
 
             // 2. TAB SWITCHER

@@ -181,8 +181,16 @@ fun PlaygroundMessageBubble(
                 tint = if (isUser) MaterialTheme.colorScheme.primary else LocalAIGreen,
                 modifier = Modifier.size(14.dp)
             )
+            val modelLabel = when {
+                message.model.isBlank() -> "Neural Core"
+                message.model.contains("gemma", ignoreCase = true) -> "Gemma 2B IT"
+                message.model.contains("tinyllama", ignoreCase = true) -> "TinyLlama 1.1B"
+                message.model.contains("qwen", ignoreCase = true) -> "Qwen 2.5"
+                message.model.contains("all-minilm", ignoreCase = true) || message.model.contains("universal", ignoreCase = true) -> "Neural Core"
+                else -> message.model.replace("-", " ")
+            }
             Text(
-                text = if (isUser) "You" else "SWAYAM (${message.model})",
+                text = if (isUser) "You" else "SWAYAM ($modelLabel)",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

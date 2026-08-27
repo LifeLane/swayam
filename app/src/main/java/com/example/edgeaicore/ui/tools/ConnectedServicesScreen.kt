@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.edgeaicore.EdgeAICore
 import com.example.edgeaicore.ui.common.AppCard
+import com.example.edgeaicore.ui.common.ModuleComingSoonBanner
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -113,6 +114,14 @@ fun ConnectedServicesScreen(
             contentPadding = PaddingValues(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            item {
+                ModuleComingSoonBanner(
+                    moduleName = "MCP Connectors & External Bridges",
+                    tagline = "Sandboxed network connectors, OpenAPI proxies, and encrypted vaults",
+                    icon = Icons.Default.CloudSync,
+                    accentColor = CloudAIBorder
+                )
+            }
             item {
                 Text(
                     text = "External and on-device connectors providing tool endpoints to the Agent runtime.",

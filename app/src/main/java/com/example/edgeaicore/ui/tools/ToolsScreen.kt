@@ -29,6 +29,7 @@ import com.example.edgeaicore.core.tools.Tool
 import com.example.edgeaicore.core.tools.ToolCategory
 import com.example.edgeaicore.ui.common.AppCard
 import com.example.edgeaicore.ui.common.GoogleFilterChip
+import com.example.edgeaicore.ui.common.ModuleComingSoonBanner
 import com.example.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -131,6 +132,16 @@ fun ToolsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+
+        // 1.1 COMING SOON ROADMAP BANNER
+        item {
+            ModuleComingSoonBanner(
+                moduleName = "MCP & Hardware Tool Gateway",
+                tagline = "Deterministic sandboxed actions and external tool integrations",
+                icon = Icons.Default.Handyman,
+                accentColor = LocalAIGreen
+            )
         }
 
         // 2. ACTIVE MCP EXECUTION STATUS COMPONENT (If running or completed)

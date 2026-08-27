@@ -12,6 +12,7 @@ import com.example.edgeaicore.core.common.EdgeResult
 import com.example.edgeaicore.core.common.ExecutionBackend
 import com.example.edgeaicore.core.common.PrivacyLevel
 import com.example.edgeaicore.core.explanation.ExplanationRecord
+import com.example.edgeaicore.core.swayam.SwayamProcessingMode
 import com.example.edgeaicore.core.swayam.SwayamRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -232,26 +233,22 @@ class PlaygroundViewModel(
             try {
                 val startTime = System.currentTimeMillis()
                 
-                // Formulate prompt prefix if in specific mode
-                val modePrefix = when (_state.value.activeMode) {
-                    PlaygroundMode.RESEARCH -> "[RESEARCH EVIDENCE MODE] "
-                    PlaygroundMode.DOCUMENTS -> "[DOCUMENT CITATION RAG MODE] "
-                    PlaygroundMode.MEMORY -> "[PERSONAL MEMORY QUERY] "
-                    PlaygroundMode.AGENTS -> "[AUTONOMOUS AGENT TASK] "
-                    PlaygroundMode.TOOLS -> "[TOOL EXECUTION / MCP MODE] "
-                    PlaygroundMode.GENERAL -> ""
+                val forcedMode = when (_state.value.activeMode) {
+                    PlaygroundMode.RESEARCH -> SwayamProcessingMode.GENERAL_CHAT
+                    PlaygroundMode.DOCUMENTS -> SwayamProcessingMode.KNOWLEDGE_RAG
+                    PlaygroundMode.MEMORY -> SwayamProcessingMode.MEMORY_QUERY
+                    PlaygroundMode.AGENTS -> SwayamProcessingMode.AGENT_TASK
+                    PlaygroundMode.TOOLS -> SwayamProcessingMode.TOOL_EXECUTION
+                    PlaygroundMode.GENERAL -> null
                 }
 
-                val fullPrompt = if (modePrefix.isNotEmpty() && !prompt.startsWith("[")) {
-                    "$modePrefix$prompt"
-                } else prompt
-
                 val request = SwayamRequest(
-                    prompt = fullPrompt,
+                    prompt = prompt,
                     conversationId = currentSession.id,
                     privacyLevel = PrivacyLevel.LOCAL_ONLY,
                     preferredProvider = AIProviderType.LOCAL,
-                    modelId = currentSession.modelId
+                    modelId = currentSession.modelId,
+                    forcedMode = forcedMode
                 )
 
                 val responseRes = edgeAI.swayamCore.process(request)

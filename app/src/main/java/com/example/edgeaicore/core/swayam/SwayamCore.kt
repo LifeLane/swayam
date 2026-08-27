@@ -51,7 +51,8 @@ data class SwayamRequest(
     val stream: Boolean = true,
     val modelId: String = "gemma-2b-it-litert",
     val forcedPersonaId: String? = null,
-    val enablePersonaChain: Boolean = false
+    val enablePersonaChain: Boolean = false,
+    val forcedMode: SwayamProcessingMode? = null
 )
 
 data class SwayamResponse(
@@ -133,7 +134,7 @@ class SwayamCore(
         }
 
         // 1. Intent Classification
-        val detectedMode = classifyIntent(query, queryLower)
+        val detectedMode = request.forcedMode ?: classifyIntent(query, queryLower)
 
         when (detectedMode) {
             SwayamProcessingMode.MEMORY_CREATION -> {

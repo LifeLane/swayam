@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.edgeaicore.EdgeAICore
 import com.example.edgeaicore.core.common.AIProviderType
+import com.example.edgeaicore.core.document.DocumentTextExtractor
 import com.example.edgeaicore.core.memory.MemoryEntity
 import com.example.edgeaicore.core.memory.MemoryType
 import com.example.edgeaicore.core.storage.EncryptionVaultStatus
@@ -105,26 +106,11 @@ fun MemoryScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             try {
-                val contentResolver = context.contentResolver
-                var displayName = "uploaded_document"
-                val cursor = contentResolver.query(uri, null, null, null, null)
-                cursor?.use {
-                    if (it.moveToFirst()) {
-                        val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                        if (nameIndex >= 0) {
-                            displayName = it.getString(nameIndex)
-                        }
-                    }
-                }
-
-                val inputStream = contentResolver.openInputStream(uri)
-                val rawText = inputStream?.bufferedReader()?.use { it.readText() } ?: ""
-                val previewContent = if (rawText.isNotBlank()) rawText.take(1500) else "Binary document attached: $displayName"
-
-                uploadedFileName = displayName
-                newMemoryTitle = displayName.substringBeforeLast(".")
-                newMemoryContent = previewContent
-                newMemoryTags = "document, file, imported"
+                val extracted = DocumentTextExtractor.extractTextFromUri(context, uri)
+                uploadedFileName = extracted.fileName
+                newMemoryTitle = extracted.fileName.substringBeforeLast(".")
+                newMemoryContent = extracted.cleanText
+                newMemoryTags = if (extracted.isPdf) "document, pdf, imported" else "document, text, imported"
                 showAddDialog = true
             } catch (e: Exception) {
                 coroutineScope.launch {

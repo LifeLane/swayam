@@ -27,6 +27,7 @@ import com.example.edgeaicore.ui.common.AppCard
 import com.example.edgeaicore.ui.common.GoogleButton
 import com.example.edgeaicore.ui.common.GoogleFilterChip
 import com.example.edgeaicore.ui.common.GoogleRadioCard
+import com.example.edgeaicore.ui.common.ModuleComingSoonBanner
 import com.example.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -143,6 +144,15 @@ fun BenchmarkScreen(
             contentPadding = PaddingValues(top = 8.dp, bottom = 40.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 0. COMING SOON BANNER
+            item {
+                ModuleComingSoonBanner(
+                    moduleName = "NPU & GPU Neural Benchmarking",
+                    tagline = "Time-to-first-token, memory bandwidth, and thermal dissipation profiling",
+                    icon = Icons.Default.Speed,
+                    accentColor = GoogleYellow
+                )
+            }
             // 1. HEADER INFO
             item {
                 Surface(

@@ -30,9 +30,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.edgeaicore.EdgeAICore
 import com.example.edgeaicore.core.common.EdgeResult
+import com.example.edgeaicore.core.document.DocumentTextExtractor
 import com.example.edgeaicore.core.memory.MemoryType
 import com.example.edgeaicore.ui.common.AIStatus
 import com.example.edgeaicore.ui.common.AppCard
+import com.example.edgeaicore.ui.common.ModuleComingSoonBanner
 import com.example.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -110,21 +112,10 @@ fun DocumentIntelligenceScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             try {
-                var fileName = "Document"
-                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                    val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (idx != -1 && cursor.moveToFirst()) {
-                        fileName = cursor.getString(idx)
-                    }
-                }
-                newDocTitle = fileName
-                val content = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-                if (!content.isNullOrBlank()) {
-                    newDocContent = content
-                    newDocTags = "document, ${fileName.substringAfterLast('.', "vault")}"
-                } else {
-                    newDocContent = "Document: $fileName stored in sovereign memory vault."
-                }
+                val extracted = DocumentTextExtractor.extractTextFromUri(context, uri)
+                newDocTitle = extracted.fileName
+                newDocContent = extracted.cleanText
+                newDocTags = if (extracted.isPdf) "document, pdf, vault" else "document, text, vault"
                 showAddDialog = true
             } catch (_: Exception) {}
         }
@@ -179,6 +170,15 @@ fun DocumentIntelligenceScreen(
             contentPadding = PaddingValues(top = 8.dp, bottom = 90.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 0. COMING SOON BANNER
+            item {
+                ModuleComingSoonBanner(
+                    moduleName = "Deep Document Intelligence & Neural RAG",
+                    tagline = "Multi-page semantic indexing, vector embeddings, and chunk citation",
+                    icon = Icons.Default.Description,
+                    accentColor = GoogleGreen
+                )
+            }
             // 1. HEADER & RAG EXPLANATION
             item {
                 Surface(
