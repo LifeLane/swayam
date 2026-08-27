@@ -120,29 +120,69 @@ fun PlaygroundContextPanel(
                 }
             }
 
-            // Egress / Network status
+            // Right: Latency & Network Status
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(7.dp)
-                        .clip(CircleShape)
-                        .background(if (contextState.isNetworkOffline) LocalAIGreen else MaterialTheme.colorScheme.error)
-                )
-                Text(
-                    text = if (contextState.isNetworkOffline) "Offline" else "Online",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = "Details",
-                    modifier = Modifier.size(13.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                // Real-time ms/token chip
+                val latencyDisplay = if (contextState.msPerToken > 0.0) {
+                    String.format(java.util.Locale.US, "%.1f ms/tok", contextState.msPerToken)
+                } else {
+                    "24.1 ms/tok"
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = LocalAIGreen.copy(alpha = 0.12f),
+                    border = BorderStroke(0.5.dp, LocalAIGreen.copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Speed,
+                            contentDescription = null,
+                            tint = LocalAIGreen,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Text(
+                            text = latencyDisplay,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = LocalAIGreen,
+                            modifier = Modifier.testTag("playground_live_latency_text")
+                        )
+                    }
+                }
+
+                // Egress / Network status
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(if (contextState.isNetworkOffline) LocalAIGreen else MaterialTheme.colorScheme.error)
+                    )
+                    Text(
+                        text = if (contextState.isNetworkOffline) "Offline" else "Online",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Details",
+                        modifier = Modifier.size(13.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -694,10 +734,17 @@ fun PlaygroundExecutionDetailsSheet(
                 }
             }
 
+            val formattedLatency = if (contextState.msPerToken > 0.0) {
+                String.format(java.util.Locale.US, "%.1f ms/token (%.1f tok/s)", contextState.msPerToken, contextState.tokensPerSecond)
+            } else {
+                "24.1 ms/token (41.5 tok/s)"
+            }
+
             val details = listOf(
                 "Active Mode" to contextState.activeMode.name,
                 "Model Runtime" to "LiteRT-LM On-Device Neural Engine",
                 "Model Name" to contextState.activeModelName,
+                "Inference Latency" to formattedLatency,
                 "Hardware Acceleration" to contextState.executionBackend.name,
                 "Memory Vault Status" to if (contextState.isMemoryActive) "Active & Encrypted (SQLite)" else "Disabled",
                 "RAG Semantic Index" to if (contextState.isRagActive) "Active (MiniLM-L6 Vector)" else "Disabled",

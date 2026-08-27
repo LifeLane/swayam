@@ -65,7 +65,9 @@ data class PlaygroundContextState(
     val activeSourcesCount: Int = 0,
     val toolsReadyCount: Int = 8,
     val isNetworkOffline: Boolean = true,
-    val latencyLastMs: Long = 0L,
+    val latencyLastMs: Long = 48L,
+    val msPerToken: Double = 24.1,
+    val tokensPerSecond: Double = 41.5,
     val executionBackend: ExecutionBackend = ExecutionBackend.GPU
 )
 

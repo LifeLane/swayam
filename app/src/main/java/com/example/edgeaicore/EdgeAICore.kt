@@ -385,6 +385,7 @@ class EdgeAICore private constructor(val context: Context) {
     }
 
     inner class DiagnosticsSubsystem {
+        val metrics: StateFlow<DiagnosticsMetrics> get() = perfMonitor.metrics
         fun metrics(): DiagnosticsMetrics = perfMonitor.metrics.value
         fun specs() = deviceCapManager.getDeviceSpecs()
         fun flow() = perfMonitor.metrics

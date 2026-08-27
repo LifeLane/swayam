@@ -32,6 +32,7 @@ import com.example.edgeaicore.core.memory.MemoryEntity
 import com.example.edgeaicore.ui.common.AIStatus
 import com.example.edgeaicore.ui.common.AIStatusCard
 import com.example.edgeaicore.ui.common.AppCard
+import com.example.edgeaicore.ui.common.OnDeviceModelStatusIndicator
 import com.example.edgeaicore.ui.common.SwayamBrandHeader
 import com.example.ui.theme.*
 import java.util.*
@@ -57,6 +58,7 @@ fun HomeScreen(
     val memoryCount by edgeAI.memory.count.collectAsStateWithLifecycle(initialValue = 0)
     val latestMemories: List<MemoryEntity> by edgeAI.memory.activeMemories.collectAsStateWithLifecycle(initialValue = emptyList())
     val lastAgentResult by edgeAI.agent.lastResult.collectAsStateWithLifecycle()
+    val diagnosticsMetrics by edgeAI.diagnostics.metrics.collectAsStateWithLifecycle()
     val specs = remember { edgeAI.diagnostics.specs() }
 
     var quickInputText by remember { mutableStateOf("") }
@@ -118,14 +120,25 @@ fun HomeScreen(
             }
         }
 
-        // 2. REUSABLE AI STATUS COMPONENT
+        // 2. REUSABLE AI STATUS COMPONENT & REAL-TIME MODEL/LATENCY INDICATOR
         item {
-            AIStatus(
-                providerType = if (privacyState.cloudAiEnabled) AIProviderType.CLOUD else if (privacyState.privateServerEnabled) AIProviderType.PRIVATE_SERVER else AIProviderType.LOCAL,
-                isOffline = !privacyState.cloudAiEnabled && !privacyState.privateServerEnabled,
-                hardwareAccelerator = "${specs.recommendedBackend.name} ACCELERATED",
-                onClick = onOpenOperatingCenter
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                AIStatus(
+                    providerType = if (privacyState.cloudAiEnabled) AIProviderType.CLOUD else if (privacyState.privateServerEnabled) AIProviderType.PRIVATE_SERVER else AIProviderType.LOCAL,
+                    isOffline = !privacyState.cloudAiEnabled && !privacyState.privateServerEnabled,
+                    hardwareAccelerator = "${specs.recommendedBackend.name} ACCELERATED",
+                    onClick = onOpenOperatingCenter
+                )
+
+                OnDeviceModelStatusIndicator(
+                    modelName = diagnosticsMetrics.activeModelName,
+                    msPerToken = diagnosticsMetrics.msPerToken,
+                    tokensPerSecond = diagnosticsMetrics.tokensPerSecond,
+                    backend = "${diagnosticsMetrics.activeBackend.name} • ${specs.totalRamMb / 1024}GB RAM",
+                    isGenerating = false,
+                    onClick = onOpenOperatingCenter
+                )
+            }
         }
 
         // 3. PRIMARY PROMPT ACTION BAR ("How can I help?")

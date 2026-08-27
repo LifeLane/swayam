@@ -97,7 +97,8 @@ class AIRouter(
                 latencyMs = result.data.latencyMs,
                 tokensGenerated = result.data.tokensGenerated,
                 success = true,
-                modelId = result.data.model
+                modelId = result.data.model,
+                modelName = result.data.model
             )
         }
 

@@ -58,6 +58,25 @@ class PlaygroundViewModel(
     init {
         loadSessions()
         refreshContextState()
+        observeDiagnostics()
+    }
+
+    private fun observeDiagnostics() {
+        viewModelScope.launch {
+            edgeAI.diagnostics.metrics.collect { metrics ->
+                _state.update { current ->
+                    current.copy(
+                        contextState = current.contextState.copy(
+                            activeModelName = if (metrics.activeModelName.isNotBlank() && metrics.activeModelName != "None") metrics.activeModelName else current.contextState.activeModelName,
+                            latencyLastMs = metrics.lastInferenceLatencyMs,
+                            msPerToken = metrics.msPerToken,
+                            tokensPerSecond = metrics.tokensPerSecond,
+                            executionBackend = metrics.activeBackend
+                        )
+                    )
+                }
+            }
+        }
     }
 
     private fun loadSessions() {

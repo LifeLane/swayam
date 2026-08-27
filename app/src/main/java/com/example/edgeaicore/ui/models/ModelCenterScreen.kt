@@ -33,6 +33,7 @@ import com.example.edgeaicore.core.models.ModelType
 import com.example.edgeaicore.core.models.hub.HubModelItem
 import com.example.edgeaicore.core.models.hub.HubModelSource
 import com.example.edgeaicore.ui.common.AppCard
+import com.example.edgeaicore.ui.common.OnDeviceModelStatusIndicator
 import com.example.ui.theme.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -62,6 +63,7 @@ fun ModelCenterScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val modelsList by edgeAI.models.list.collectAsStateWithLifecycle()
+    val diagnosticsMetrics by edgeAI.diagnostics.metrics.collectAsStateWithLifecycle()
     
     var selectedTab by remember { mutableStateOf(HubTab.LOCAL) }
     var searchQuery by remember { mutableStateOf("") }
@@ -189,6 +191,17 @@ fun ModelCenterScreen(
             contentPadding = PaddingValues(top = 4.dp, bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // 0. LIVE ON-DEVICE MODEL & INFERENCE LATENCY INDICATOR
+            item {
+                OnDeviceModelStatusIndicator(
+                    modelName = diagnosticsMetrics.activeModelName,
+                    msPerToken = diagnosticsMetrics.msPerToken,
+                    tokensPerSecond = diagnosticsMetrics.tokensPerSecond,
+                    backend = "${diagnosticsMetrics.activeBackend.name} ACCELERATED",
+                    isGenerating = false
+                )
+            }
+
             // 1. REPOSITORY METRICS & STORAGE HEADER
             item {
                 AppCard(
