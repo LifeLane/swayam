@@ -28,7 +28,7 @@ import java.io.File
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
-@Ignore("JNI not supported in Robolectric")
+@Ignore
 class AirplaneModeValidationTest {
 
     private lateinit var context: Context
