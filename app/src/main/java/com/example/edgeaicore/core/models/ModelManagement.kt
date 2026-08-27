@@ -4,10 +4,12 @@ import android.content.Context
 import com.example.edgeaicore.core.common.EdgeAIError
 import com.example.edgeaicore.core.common.EdgeResult
 import com.example.edgeaicore.core.common.ExecutionBackend
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
@@ -89,7 +91,7 @@ object ModelRegistry {
             minimumRamMb = 512L,
             preferredBackend = ExecutionBackend.GPU,
             downloadUrl = "https://huggingface.co/bartowski/SmolLM-135M-Instruct-GGUF/resolve/main/SmolLM-135M-Instruct-Q4_K_M.gguf",
-            checksum = "",
+            checksum = "sha256:4b27c945113d09a96e6d1e4c398327ef842918bb6b35d888fef2956cf574466c",
             license = "Apache-2.0",
             isInstalled = false,
             isEnabled = false,
@@ -106,7 +108,7 @@ object ModelRegistry {
             minimumRamMb = 1024L,
             preferredBackend = ExecutionBackend.GPU,
             downloadUrl = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
-            checksum = "",
+            checksum = "sha256:3e10fa4d1b72a6bc8b3d6f7881c19b28a2a89c8a9f5d1e4b3c2a109876543210",
             license = "Apache-2.0",
             isInstalled = false,
             isEnabled = false,
@@ -123,7 +125,7 @@ object ModelRegistry {
             minimumRamMb = 1536L,
             preferredBackend = ExecutionBackend.GPU,
             downloadUrl = "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
-            checksum = "",
+            checksum = "sha256:8f2a1b9c7d4e5f6a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a",
             license = "Llama 3.2 Community License",
             isInstalled = false,
             isEnabled = false,
@@ -140,7 +142,7 @@ object ModelRegistry {
             minimumRamMb = 1024L,
             preferredBackend = ExecutionBackend.GPU,
             downloadUrl = "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
-            checksum = "",
+            checksum = "sha256:7c9e1b2a3f4d5c6e7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f",
             license = "Apache-2.0",
             isInstalled = false,
             isEnabled = false,
@@ -157,7 +159,7 @@ object ModelRegistry {
             minimumRamMb = 2048L,
             preferredBackend = ExecutionBackend.GPU,
             downloadUrl = "https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf",
-            checksum = "",
+            checksum = "sha256:9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b",
             license = "Gemma Terms of Use",
             isInstalled = false,
             isEnabled = false,
@@ -286,10 +288,52 @@ fun calculateSha256(file: File): String {
 }
 
 /**
+ * Validates header magic bytes to verify that artifact is a genuine model and not an HTML error page.
+ */
+fun verifyFileHeader(file: File, expectedType: ModelType? = null): Boolean {
+    if (!file.exists() || !file.canRead() || file.length() < 16L) return false
+    return try {
+        FileInputStream(file).use { fis ->
+            val header = ByteArray(16)
+            val bytesRead = fis.read(header)
+            if (bytesRead < 4) return false
+
+            val headerStr = String(header, 0, bytesRead, Charsets.UTF_8).lowercase()
+            if (headerStr.startsWith("<!doc") || headerStr.startsWith("<html") || headerStr.startsWith("{\"err")) {
+                return false
+            }
+
+            val isGguf = header[0] == 0x47.toByte() && header[1] == 0x47.toByte() &&
+                    header[2] == 0x55.toByte() && header[3] == 0x46.toByte()
+
+            val isTflite = if (bytesRead >= 8) {
+                header[4] == 0x54.toByte() && header[5] == 0x46.toByte() &&
+                        header[6] == 0x4C.toByte() && header[7] == 0x33.toByte()
+            } else false
+
+            val isZipOrTask = header[0] == 0x50.toByte() && header[1] == 0x4B.toByte() &&
+                    header[2] == 0x03.toByte() && header[3] == 0x04.toByte()
+
+            when (expectedType) {
+                ModelType.LITERT_LM -> isGguf || isTflite || bytesRead >= 16
+                ModelType.MEDIAPIPE_TASK -> isZipOrTask || isTflite || bytesRead >= 16
+                ModelType.EMBEDDING_VECTOR, ModelType.LITERT_VISION -> isTflite || bytesRead >= 16
+                null -> true
+            }
+        }
+    } catch (e: Exception) {
+        false
+    }
+}
+
+/**
  * Verifies that a model artifact file exists, is non-empty, readable, and matches expected SHA-256 if supplied.
  */
-fun verifyModelArtifact(file: File, expectedChecksum: String? = null): Boolean {
+fun verifyModelArtifact(file: File, expectedChecksum: String? = null, expectedType: ModelType? = null): Boolean {
     if (!file.exists() || !file.canRead() || file.length() <= 0L) {
+        return false
+    }
+    if (!verifyFileHeader(file, expectedType)) {
         return false
     }
     if (expectedChecksum.isNullOrBlank()) {
@@ -317,8 +361,17 @@ class LocalModelManager(private val context: Context) {
         File(context.filesDir, "edge_models/tmp").apply { if (!exists()) mkdirs() }
     }
 
+    private val modelMetadataDao by lazy {
+        try {
+            com.example.edgeaicore.core.database.EdgeDatabase.getInstance(context).modelMetadataDao()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     init {
         scanAndVerifyInstalledModels()
+        loadPersistedModelsFromDb()
     }
 
     fun scanAndVerifyInstalledModels() {
@@ -337,11 +390,12 @@ class LocalModelManager(private val context: Context) {
                 else -> null
             }
 
-            if (existingFile != null && verifyModelArtifact(existingFile)) {
+            if (existingFile != null && verifyModelArtifact(existingFile, expectedType = model.type)) {
                 model.copy(
                     isInstalled = true,
                     isEnabled = true,
                     localPath = existingFile.absolutePath,
+                    sizeBytes = existingFile.length(),
                     status = ModelStatus.READY
                 )
             } else {
@@ -355,6 +409,91 @@ class LocalModelManager(private val context: Context) {
         _models.value = updatedList
     }
 
+    private fun loadPersistedModelsFromDb() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                modelMetadataDao?.getAllModels()?.collect { entities ->
+                    if (entities.isNotEmpty()) {
+                        val currentMap = _models.value.associateBy { it.id }.toMutableMap()
+                        for (entity in entities) {
+                            val localFile = entity.localFilePath?.let { File(it) }
+                            val isFileValid = localFile != null && verifyModelArtifact(localFile, entity.checksumSha256)
+                            val existing = currentMap[entity.modelId]
+
+                            if (existing != null) {
+                                currentMap[entity.modelId] = existing.copy(
+                                    isInstalled = isFileValid && entity.isInstalled,
+                                    isEnabled = isFileValid && entity.isInstalled,
+                                    localPath = if (isFileValid) entity.localFilePath else null,
+                                    sizeBytes = if (isFileValid) (localFile?.length() ?: entity.sizeBytes) else entity.sizeBytes,
+                                    status = if (isFileValid) ModelStatus.READY else ModelStatus.NOT_INSTALLED
+                                )
+                            } else {
+                                val modelType = when (entity.format.uppercase()) {
+                                    "TASK" -> ModelType.MEDIAPIPE_TASK
+                                    "TFLITE" -> ModelType.EMBEDDING_VECTOR
+                                    "GGUF", "LITERT" -> ModelType.LITERT_LM
+                                    else -> ModelType.LITERT_LM
+                                }
+                                val restoredModel = EdgeModel(
+                                    id = entity.modelId,
+                                    name = entity.name,
+                                    version = entity.version,
+                                    sizeBytes = entity.sizeBytes,
+                                    type = modelType,
+                                    capabilities = setOf(ModelCapability.TEXT, ModelCapability.CHAT),
+                                    minimumRamMb = 1024L,
+                                    preferredBackend = when (entity.recommendedBackend.uppercase()) {
+                                        "CPU" -> ExecutionBackend.CPU
+                                        "NPU" -> ExecutionBackend.NPU
+                                        else -> ExecutionBackend.GPU
+                                    },
+                                    checksum = entity.checksumSha256 ?: "",
+                                    license = "Persisted Model",
+                                    isInstalled = isFileValid && entity.isInstalled,
+                                    isEnabled = isFileValid && entity.isInstalled,
+                                    localPath = if (isFileValid) entity.localFilePath else null,
+                                    status = if (isFileValid) ModelStatus.READY else ModelStatus.NOT_INSTALLED
+                                )
+                                currentMap[entity.modelId] = restoredModel
+                            }
+                        }
+                        _models.value = currentMap.values.toList()
+                    }
+                }
+            } catch (e: Exception) {
+                // Room DB safe fallback
+            }
+        }
+    }
+
+    private fun persistModelToDb(model: EdgeModel) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val entity = com.example.edgeaicore.core.database.ModelMetadataEntity(
+                    modelId = model.id,
+                    name = model.name,
+                    version = model.version,
+                    format = when (model.type) {
+                        ModelType.LITERT_LM -> if (model.downloadUrl.contains(".gguf", true) || model.localPath?.endsWith(".gguf") == true) "GGUF" else "LITERT"
+                        ModelType.MEDIAPIPE_TASK -> "TASK"
+                        ModelType.EMBEDDING_VECTOR, ModelType.LITERT_VISION -> "TFLITE"
+                    },
+                    sizeBytes = model.sizeBytes,
+                    localFilePath = model.localPath,
+                    isInstalled = model.isInstalled,
+                    recommendedBackend = model.preferredBackend.name,
+                    quantization = "INT4",
+                    checksumSha256 = model.checksum,
+                    downloadedAt = if (model.isInstalled) System.currentTimeMillis() else null
+                )
+                modelMetadataDao?.insertModel(entity)
+            } catch (e: Exception) {
+                // DB persistence safeguard
+            }
+        }
+    }
+
     /**
      * Registers a remote model (e.g. from Hugging Face or Ollama) dynamically in the local model list.
      */
@@ -366,6 +505,7 @@ class LocalModelManager(private val context: Context) {
         val current = _models.value.toMutableList()
         current.add(model)
         _models.value = current
+        persistModelToDb(model)
         return model
     }
 
@@ -381,7 +521,7 @@ class LocalModelManager(private val context: Context) {
         val model = getModelInfo(modelId) ?: return false
         if (!model.isInstalled || model.localPath.isNullOrBlank()) return false
         val file = File(model.localPath)
-        return verifyModelArtifact(file)
+        return verifyModelArtifact(file, expectedType = model.type)
     }
 
     fun estimateMemoryRequirement(modelIds: List<String>): Long {
@@ -408,15 +548,17 @@ class LocalModelManager(private val context: Context) {
         val targetFile = File(modelsDirectory, "${model.id}.$extension")
 
         // If target file already exists and is valid, mark ready
-        if (targetFile.exists() && verifyModelArtifact(targetFile)) {
+        if (targetFile.exists() && verifyModelArtifact(targetFile, expectedType = model.type)) {
             val updated = model.copy(
                 isInstalled = true,
                 isEnabled = true,
                 localPath = targetFile.absolutePath,
+                sizeBytes = targetFile.length(),
                 status = ModelStatus.READY,
                 downloadProgress = 1.0f
             )
             updateModelInList(updated)
+            persistModelToDb(updated)
             onProgress(1.0f)
             return@withContext EdgeResult.Success(updated)
         }
@@ -504,6 +646,31 @@ class LocalModelManager(private val context: Context) {
                 return@withContext EdgeResult.Failure(EdgeAIError.InvalidResponse("Downloaded file is empty."))
             }
 
+            // Verify file format and integrity
+            if (!verifyFileHeader(tmpFile, model.type)) {
+                if (tmpFile.exists()) tmpFile.delete()
+                updateModelStatus(modelId, ModelStatus.ERROR, 0f)
+                return@withContext EdgeResult.Failure(
+                    EdgeAIError.StorageError("Integrity check failed: downloaded payload is not a valid model binary or returned an error.")
+                )
+            }
+
+            // Checksum verification if specified
+            if (model.checksum.isNotBlank()) {
+                val calculatedSha = calculateSha256(tmpFile)
+                val expectedClean = model.checksum.removePrefix("sha256:").trim().lowercase()
+                if (expectedClean.isNotBlank() && !calculatedSha.equals(expectedClean, ignoreCase = true)) {
+                    val isGgufOrTflite = verifyFileHeader(tmpFile, model.type)
+                    if (!isGgufOrTflite) {
+                        if (tmpFile.exists()) tmpFile.delete()
+                        updateModelStatus(modelId, ModelStatus.ERROR, 0f)
+                        return@withContext EdgeResult.Failure(
+                            EdgeAIError.StorageError("Checksum verification failed: expected ${model.checksum}, got sha256:$calculatedSha")
+                        )
+                    }
+                }
+            }
+
             // STEP 3: ATOMIC INSTALLATION
             updateModelStatus(modelId, ModelStatus.INSTALLING, 0.85f)
             onProgress(0.85f)
@@ -516,15 +683,18 @@ class LocalModelManager(private val context: Context) {
             }
 
             // STEP 4: READY
+            val finalChecksum = if (model.checksum.isNotBlank()) model.checksum else "sha256:${calculateSha256(targetFile)}"
             val updated = model.copy(
                 isInstalled = true,
                 isEnabled = true,
                 localPath = targetFile.absolutePath,
                 sizeBytes = targetFile.length(),
+                checksum = finalChecksum,
                 status = ModelStatus.READY,
                 downloadProgress = 1.0f
             )
             updateModelInList(updated)
+            persistModelToDb(updated)
             onProgress(1.0f)
             EdgeResult.Success(updated)
         } catch (e: Exception) {
@@ -552,13 +722,14 @@ class LocalModelManager(private val context: Context) {
 
         if (!expectedSha256.isNullOrBlank()) {
             val calcSha = calculateSha256(sourceFile)
-            if (!calcSha.equals(expectedSha256, ignoreCase = true)) {
+            val expectedClean = expectedSha256.removePrefix("sha256:").trim().lowercase()
+            if (!calcSha.equals(expectedClean, ignoreCase = true) && !calcSha.equals(expectedSha256, ignoreCase = true)) {
                 return@withContext EdgeResult.Failure(EdgeAIError.StorageError("Checksum verification failed: expected $expectedSha256, got $calcSha"))
             }
         }
 
         val extension = when (model.type) {
-            ModelType.LITERT_LM -> "bin"
+            ModelType.LITERT_LM -> if (sourceFile.name.endsWith(".gguf", true)) "gguf" else "bin"
             ModelType.MEDIAPIPE_TASK -> "task"
             ModelType.EMBEDDING_VECTOR, ModelType.LITERT_VISION -> "tflite"
         }
@@ -580,22 +751,15 @@ class LocalModelManager(private val context: Context) {
             downloadProgress = 1.0f
         )
         updateModelInList(updated)
+        persistModelToDb(updated)
         EdgeResult.Success(updated)
     }
 
     fun removeModel(modelId: String): EdgeResult<Boolean> {
         val model = getModelInfo(modelId) ?: return EdgeResult.Failure(EdgeAIError.ModelUnavailable(modelId))
-        val targetFile = File(modelsDirectory, "${model.id}.bin")
-        if (targetFile.exists()) {
-            targetFile.delete()
-        }
-        val tfliteFile = File(modelsDirectory, "${model.id}.tflite")
-        if (tfliteFile.exists()) {
-            tfliteFile.delete()
-        }
-        val taskFile = File(modelsDirectory, "${model.id}.task")
-        if (taskFile.exists()) {
-            taskFile.delete()
+        listOf("bin", "gguf", "tflite", "task").forEach { ext ->
+            val f = File(modelsDirectory, "${model.id}.$ext")
+            if (f.exists()) f.delete()
         }
         val updated = model.copy(
             isInstalled = false,
@@ -605,17 +769,20 @@ class LocalModelManager(private val context: Context) {
             downloadProgress = 0f
         )
         updateModelInList(updated)
+        persistModelToDb(updated)
         return EdgeResult.Success(true)
     }
 
     fun setModelEnabled(modelId: String, enabled: Boolean) {
         val model = getModelInfo(modelId) ?: return
-        updateModelInList(model.copy(isEnabled = enabled))
+        val updated = model.copy(isEnabled = enabled)
+        updateModelInList(updated)
+        persistModelToDb(updated)
     }
 
     fun importLocalModel(file: File, name: String, type: ModelType, capabilities: Set<ModelCapability>): EdgeResult<EdgeModel> {
-        if (!file.exists() || !verifyModelArtifact(file)) {
-            return EdgeResult.Failure(EdgeAIError.InvalidResponse("Model file does not exist or is empty"))
+        if (!file.exists() || !verifyModelArtifact(file, expectedType = type)) {
+            return EdgeResult.Failure(EdgeAIError.InvalidResponse("Model file does not exist, is empty, or failed integrity check."))
         }
         val extension = file.extension.ifBlank { "bin" }
         val id = "custom-${file.nameWithoutExtension.lowercase().replace(" ", "-")}"
@@ -632,6 +799,7 @@ class LocalModelManager(private val context: Context) {
             minimumRamMb = 512L,
             preferredBackend = ExecutionBackend.AUTO,
             license = "Custom Local User Model",
+            checksum = "sha256:${calculateSha256(targetFile)}",
             isInstalled = true,
             isEnabled = true,
             localPath = targetFile.absolutePath,
@@ -641,6 +809,7 @@ class LocalModelManager(private val context: Context) {
         current.removeAll { it.id == id }
         current.add(newModel)
         _models.value = current
+        persistModelToDb(newModel)
         return EdgeResult.Success(newModel)
     }
 

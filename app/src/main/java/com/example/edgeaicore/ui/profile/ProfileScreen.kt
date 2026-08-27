@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -199,7 +200,7 @@ fun ProfileScreen(
                 NavigationHubItem(
                     title = "Document Intelligence & RAG Vault",
                     subtitle = "Ingest PDFs, notes & semantic citation lookup",
-                    icon = Icons.Default.MenuBook,
+                    icon = Icons.AutoMirrored.Filled.MenuBook,
                     onClick = onNavigateToDocumentIntel
                 )
                 NavigationHubItem(
