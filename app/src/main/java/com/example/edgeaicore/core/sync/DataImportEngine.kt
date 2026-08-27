@@ -35,7 +35,9 @@ class DataImportEngine(
                 return@withContext EdgeResult.Failure(contentRes.error)
             }
             val json = (contentRes as EdgeResult.Success).data
-            if (!json.contains("exportTimestamp") || !json.contains("memories")) {
+            val isExportData = json.contains("exportTimestamp") || json.contains("memories")
+            val isManifest = json.contains("exportVersion") && json.contains("checksumSha256")
+            if (!isExportData && !isManifest) {
                 return@withContext EdgeResult.Success(
                     ImportValidationReport(
                         isValid = false,

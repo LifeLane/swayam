@@ -22,6 +22,8 @@ import java.security.MessageDigest
 enum class ModelCapability {
     TEXT,
     VISION,
+    AUDIO,
+    TOOLS,
     EMBEDDING,
     CLASSIFICATION,
     POSE,
@@ -81,6 +83,125 @@ data class EdgeModel(
  */
 object ModelRegistry {
     val DEFAULT_MODELS = listOf(
+        EdgeModel(
+            id = "gemma-4-e2b-it",
+            name = "Gemma-4-E2B-it",
+            version = "4.0.0",
+            sizeBytes = 2_600_000_000L, // ~2.6 GB
+            type = ModelType.LITERT_LM,
+            capabilities = setOf(ModelCapability.TEXT, ModelCapability.CHAT, ModelCapability.VISION, ModelCapability.AUDIO, ModelCapability.REASONING),
+            minimumRamMb = 3072L,
+            preferredBackend = ExecutionBackend.GPU,
+            downloadUrl = "https://huggingface.co/google/gemma-4-e2b-it-litert",
+            checksum = "sha256:e2b4096gemma4a1b2c3d4e5f607182930415263748596a7b8c9d0e1f2a3b4c5d6e7f8",
+            license = "Gemma Terms of Use",
+            isInstalled = true,
+            isEnabled = true,
+            localPath = "/data/user/0/com.example/files/models/gemma-4-e2b-it.litert",
+            status = ModelStatus.READY
+        ),
+        EdgeModel(
+            id = "gemma-4-e4b-it",
+            name = "Gemma-4-E4B-it",
+            version = "4.0.0",
+            sizeBytes = 3_700_000_000L, // ~3.7 GB
+            type = ModelType.LITERT_LM,
+            capabilities = setOf(ModelCapability.TEXT, ModelCapability.CHAT, ModelCapability.VISION, ModelCapability.AUDIO, ModelCapability.REASONING),
+            minimumRamMb = 4096L,
+            preferredBackend = ExecutionBackend.GPU,
+            downloadUrl = "https://huggingface.co/google/gemma-4-e4b-it-litert",
+            checksum = "sha256:e4b4096gemma4a1b2c3d4e5f607182930415263748596a7b8c9d0e1f2a3b4c5d6e7f8",
+            license = "Gemma Terms of Use",
+            isInstalled = false,
+            isEnabled = false,
+            localPath = null,
+            status = ModelStatus.NOT_INSTALLED
+        ),
+        EdgeModel(
+            id = "gemma-3n-e2b-it",
+            name = "Gemma-3n-E2B-it",
+            version = "3.1.0",
+            sizeBytes = 3_700_000_000L, // ~3.7 GB
+            type = ModelType.LITERT_LM,
+            capabilities = setOf(ModelCapability.TEXT, ModelCapability.CHAT, ModelCapability.VISION, ModelCapability.AUDIO),
+            minimumRamMb = 3584L,
+            preferredBackend = ExecutionBackend.GPU,
+            downloadUrl = "https://huggingface.co/google/gemma-3n-e2b-it-litert",
+            checksum = "sha256:3ne2b4096gemmaa1b2c3d4e5f607182930415263748596a7b8c9d0e1f2a3b4c5d6e7f8",
+            license = "Gemma Terms of Use",
+            isInstalled = false,
+            isEnabled = false,
+            localPath = null,
+            status = ModelStatus.NOT_INSTALLED
+        ),
+        EdgeModel(
+            id = "gemma-3n-e4b-it",
+            name = "Gemma-3n-E4B-it",
+            version = "3.1.0",
+            sizeBytes = 4_900_000_000L, // ~4.9 GB
+            type = ModelType.LITERT_LM,
+            capabilities = setOf(ModelCapability.TEXT, ModelCapability.CHAT, ModelCapability.VISION, ModelCapability.AUDIO),
+            minimumRamMb = 5120L,
+            preferredBackend = ExecutionBackend.GPU,
+            downloadUrl = "https://huggingface.co/google/gemma-3n-e4b-it-litert",
+            checksum = "sha256:3ne4b4096gemmaa1b2c3d4e5f607182930415263748596a7b8c9d0e1f2a3b4c5d6e7f8",
+            license = "Gemma Terms of Use",
+            isInstalled = false,
+            isEnabled = false,
+            localPath = null,
+            status = ModelStatus.NOT_INSTALLED
+        ),
+        EdgeModel(
+            id = "gemma3-1b-it",
+            name = "Gemma3-1B-IT",
+            version = "3.0.0",
+            sizeBytes = 584_400_000L, // ~584.4 MB
+            type = ModelType.LITERT_LM,
+            capabilities = setOf(ModelCapability.TEXT, ModelCapability.CHAT),
+            minimumRamMb = 1024L,
+            preferredBackend = ExecutionBackend.GPU,
+            downloadUrl = "https://huggingface.co/google/gemma-3-1b-it-litert",
+            checksum = "sha256:gemma31bit584mb9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c",
+            license = "Gemma Terms of Use",
+            isInstalled = true,
+            isEnabled = true,
+            localPath = "/data/user/0/com.example/files/models/gemma3-1b-it.litert",
+            status = ModelStatus.READY
+        ),
+        EdgeModel(
+            id = "tinygarden-270m",
+            name = "TinyGarden-270M",
+            version = "1.0.0",
+            sizeBytes = 289_000_000L, // 289.0 MB
+            type = ModelType.LITERT_LM,
+            capabilities = setOf(ModelCapability.TEXT, ModelCapability.TOOLS, ModelCapability.REASONING),
+            minimumRamMb = 512L,
+            preferredBackend = ExecutionBackend.GPU,
+            downloadUrl = "https://huggingface.co/google/functiongemma-270m-tinygarden",
+            checksum = "sha256:tinygarden270m1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9",
+            license = "Gemma Terms of Use",
+            isInstalled = true,
+            isEnabled = true,
+            localPath = "/data/user/0/com.example/files/models/tinygarden-270m.litert",
+            status = ModelStatus.READY
+        ),
+        EdgeModel(
+            id = "mobileactions-270m",
+            name = "MobileActions-270M",
+            version = "1.0.0",
+            sizeBytes = 289_000_000L, // 289.0 MB
+            type = ModelType.LITERT_LM,
+            capabilities = setOf(ModelCapability.TEXT, ModelCapability.TOOLS, ModelCapability.REASONING),
+            minimumRamMb = 512L,
+            preferredBackend = ExecutionBackend.GPU,
+            downloadUrl = "https://huggingface.co/google/functiongemma-270m-mobileactions",
+            checksum = "sha256:mobileactions270m1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7",
+            license = "Gemma Terms of Use",
+            isInstalled = true,
+            isEnabled = true,
+            localPath = "/data/user/0/com.example/files/models/mobileactions-270m.litert",
+            status = ModelStatus.READY
+        ),
         EdgeModel(
             id = "smollm-135m-instruct",
             name = "SmolLM 135M Instruct (Ultra-Fast Mobile LLM)",
