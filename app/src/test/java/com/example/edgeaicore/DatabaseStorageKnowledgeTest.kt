@@ -19,7 +19,7 @@ import org.robolectric.annotation.Config
 import java.io.ByteArrayInputStream
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [34])
 class DatabaseStorageKnowledgeTest {
 
     private lateinit var context: Context

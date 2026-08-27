@@ -27,7 +27,7 @@ import java.io.File
  * with zero cloud access, executing all core capabilities purely on-device.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [34])
 @Ignore
 class AirplaneModeValidationTest {
 

@@ -83,19 +83,57 @@ class HttpSseMcpTransport(
         _connected = false
     }
 
-    override suspend fun send(request: McpJsonRpcRequest): EdgeResult<McpJsonRpcResponse> {
+    override suspend fun send(request: McpJsonRpcRequest): EdgeResult<McpJsonRpcResponse> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         if (!_connected) {
-            return EdgeResult.Failure(EdgeAIError.McpProtocolError(endpoint, "MCP Transport is not connected"))
+            return@withContext EdgeResult.Failure(EdgeAIError.McpProtocolError(endpoint, "MCP Transport is not connected"))
         }
-        // In this implementation, simulated/real HTTP SSE client parses MCP JSON-RPC
-        return try {
-            // For external endpoints, handle JSON-RPC protocol round-trip
-            EdgeResult.Success(
-                McpJsonRpcResponse(
-                    id = request.id,
-                    result = mapOf("status" to "ok", "echo_method" to request.method)
-                )
-            )
+        try {
+            val url = java.net.URL(endpoint)
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.connectTimeout = 10000
+            conn.readTimeout = 15000
+            conn.doOutput = true
+            conn.setRequestProperty("Content-Type", "application/json")
+            if (!authToken.isNullOrBlank()) {
+                conn.setRequestProperty("Authorization", "Bearer $authToken")
+            }
+            val requestJson = org.json.JSONObject().apply {
+                put("jsonrpc", request.jsonrpc)
+                put("id", request.id)
+                put("method", request.method)
+                request.params?.let { p ->
+                    put("params", org.json.JSONObject(p))
+                }
+            }.toString()
+
+            conn.outputStream.use { os ->
+                os.write(requestJson.toByteArray(Charsets.UTF_8))
+                os.flush()
+            }
+
+            val code = conn.responseCode
+            if (code in 200..299) {
+                val responseBody = conn.inputStream.bufferedReader().use { it.readText() }
+                conn.disconnect()
+                val json = org.json.JSONObject(responseBody)
+                val id = if (json.has("id")) json.getString("id") else request.id
+                val result = if (json.has("result")) {
+                    val rObj = json.optJSONObject("result")
+                    val map = mutableMapOf<String, Any?>()
+                    if (rObj != null) {
+                        rObj.keys().forEach { k -> map[k] = rObj.get(k) }
+                    } else {
+                        map["value"] = json.get("result")
+                    }
+                    map
+                } else emptyMap()
+                EdgeResult.Success(McpJsonRpcResponse(id = id, result = result))
+            } else {
+                val errBody = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "HTTP $code"
+                conn.disconnect()
+                EdgeResult.Failure(EdgeAIError.McpProtocolError(endpoint, "Remote MCP error ($code): $errBody"))
+            }
         } catch (e: Exception) {
             EdgeResult.Failure(EdgeAIError.McpProtocolError(endpoint, e.message ?: "Transport failure"))
         }

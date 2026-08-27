@@ -162,43 +162,7 @@ class AgentScheduler(
             )
         )
         _triggers.value = defaultList
-
-        // Initial default log entries
-        _executionLogs.value = listOf(
-            ScheduleExecutionLog(
-                triggerId = "sched_web_research",
-                triggerName = "Periodic Web Search & Knowledge Ingestion",
-                targetProfileName = "General Assistant",
-                timestamp = now - (50 * 60 * 1000L),
-                status = "SUCCESS",
-                durationMs = 420L,
-                summary = "Indexed latest edge computing benchmarks into local knowledge vault.",
-                stepsCount = 3,
-                tokensGenerated = 180
-            ),
-            ScheduleExecutionLog(
-                triggerId = "sched_model_maintenance",
-                triggerName = "Local Model Cache & Janitor Maintenance",
-                targetProfileName = "Productivity Agent",
-                timestamp = now - (2 * 3600 * 1000L),
-                status = "SUCCESS",
-                durationMs = 185L,
-                summary = "Database vacuum complete. Freed 1.4MB temporary cache.",
-                stepsCount = 2,
-                tokensGenerated = 95
-            ),
-            ScheduleExecutionLog(
-                triggerId = "sched_memory_reindex",
-                triggerName = "Memory Vault Vector Re-indexing & Pruning",
-                targetProfileName = "Memory Lens",
-                timestamp = now - (5 * 3600 * 1000L),
-                status = "SUCCESS",
-                durationMs = 260L,
-                summary = "Encrypted memory index refreshed and synchronized with SQLite.",
-                stepsCount = 2,
-                tokensGenerated = 110
-            )
-        )
+        _executionLogs.value = emptyList()
     }
 
     private fun startSchedulerLoop() {
@@ -210,28 +174,12 @@ class AgentScheduler(
                     val now = System.currentTimeMillis()
                     val dueTriggers = _triggers.value.filter { it.isEnabled && it.nextRunAt <= now }
                     for (trigger in dueTriggers) {
-                        // Mark as due/simulated execution if agent runtime not bound directly in background
+                        // Mark trigger updated when due
                         val updated = trigger.copy(
                             lastRunAt = now,
-                            nextRunAt = now + (trigger.intervalMinutes * 60 * 1000L),
-                            lastRunStatus = "SUCCESS",
-                            lastRunSummary = "Automated execution completed on NPU/GPU with 0 data egress.",
-                            executionCount = trigger.executionCount + 1
+                            nextRunAt = now + (trigger.intervalMinutes * 60 * 1000L)
                         )
                         updateTrigger(updated)
-                        addLog(
-                            ScheduleExecutionLog(
-                                triggerId = trigger.id,
-                                triggerName = trigger.name,
-                                targetProfileName = trigger.targetProfileName,
-                                timestamp = now,
-                                status = "SUCCESS",
-                                durationMs = 310L,
-                                summary = "Periodic trigger '${trigger.name}' executed successfully.",
-                                stepsCount = 2,
-                                tokensGenerated = 120
-                            )
-                        )
                     }
                 }
             }

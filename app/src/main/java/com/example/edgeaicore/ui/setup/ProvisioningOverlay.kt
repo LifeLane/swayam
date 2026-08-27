@@ -36,11 +36,14 @@ import com.example.ui.theme.LocalAIGreen
 @Composable
 fun ProvisioningOverlay(
     edgeAI: EdgeAICore,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenModelCenter: () -> Unit = {},
+    onDismiss: () -> Unit = {}
 ) {
     val progress by edgeAI.provisioning.progress.collectAsStateWithLifecycle()
+    var isDismissed by remember { mutableStateOf(false) }
 
-    if (progress.stage == ProvisioningStage.READY) {
+    if (progress.stage == ProvisioningStage.READY || isDismissed) {
         return
     }
 
@@ -237,18 +240,48 @@ fun ProvisioningOverlay(
                         }
                     }
 
-                    // 6. ACTION BUTTON (Retry or Manual)
+                    // 6. ACTION BUTTONS (Retry, Model Center, Offline Mode)
                     if (progress.stage == ProvisioningStage.ERROR || progress.canRetry) {
-                        Button(
-                            onClick = { edgeAI.provisioning.retryProvisioning() },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("provisioning_retry_btn"),
-                            shape = RoundedCornerShape(14.dp)
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Retry Local AI Setup", fontWeight = FontWeight.Bold)
+                            Button(
+                                onClick = { edgeAI.provisioning.retryProvisioning() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("provisioning_retry_btn"),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Retry Local AI Setup", fontWeight = FontWeight.Bold)
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    isDismissed = true
+                                    onOpenModelCenter()
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("provisioning_model_center_btn"),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Open Model Center / Import", fontWeight = FontWeight.SemiBold)
+                            }
+                            TextButton(
+                                onClick = {
+                                    isDismissed = true
+                                    onDismiss()
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("provisioning_dismiss_btn")
+                            ) {
+                                Text("Continue in Offline Mode (AI Unloaded)", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
                 }

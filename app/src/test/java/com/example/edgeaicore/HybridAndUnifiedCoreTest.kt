@@ -21,7 +21,7 @@ import org.robolectric.annotation.Config
 import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [34])
 @Ignore
 class HybridAndUnifiedCoreTest {
 

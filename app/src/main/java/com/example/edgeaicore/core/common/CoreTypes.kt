@@ -135,6 +135,9 @@ sealed class EdgeAIError(val code: String, message: String, cause: Throwable? = 
     class SecurityViolation(val reason: String, cause: Throwable? = null) : 
         EdgeAIError("ERR_SECURITY_VIOLATION", reason, cause)
         
+    class NetworkError(val detail: String, cause: Throwable? = null) : 
+        EdgeAIError("ERR_NETWORK", detail, cause)
+
     class IngestionError(val detail: String, cause: Throwable? = null) : 
         EdgeAIError("ERR_INGESTION", detail, cause)
         

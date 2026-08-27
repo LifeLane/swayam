@@ -106,6 +106,16 @@ class AIRouter(
 
     fun stream(request: AIRequest): Flow<String> {
         val target = determineTargetProvider(request)
+        val isPrivacyApproved = privacyEngine.validateRouting(
+            privacyLevel = request.privacyLevel,
+            targetProvider = target,
+            userConsentGiven = request.userConsent
+        )
+        if (!isPrivacyApproved) {
+            return kotlinx.coroutines.flow.flow {
+                throw SecurityException("Privacy violation: routing to $target forbidden for privacy level ${request.privacyLevel}")
+            }
+        }
         val genReq = GenerationRequest(
             prompt = request.prompt,
             systemInstruction = request.systemInstruction,

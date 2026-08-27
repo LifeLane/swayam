@@ -200,13 +200,8 @@ class LiteRTLMEngine(
 
             val inference = llmInference ?: throw IllegalStateException("Model not loaded")
             
-            // Simulating stream until we implement Async properly with MediaPipe progress listener
             val generatedText = inference.generateResponse(formattedPrompt)
-            val words = generatedText.split(" ")
-            words.forEach { word ->
-                trySend("$word ")
-                kotlinx.coroutines.delay(20)
-            }
+            trySend(generatedText)
             close()
         } catch (e: Exception) {
             close(e)

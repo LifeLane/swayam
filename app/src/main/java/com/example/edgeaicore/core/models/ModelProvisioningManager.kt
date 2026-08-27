@@ -244,16 +244,17 @@ class ModelProvisioningManager(
             }
 
             // STEP 3: ARTIFACT ACQUISITION (Download or Verify Existing)
+            val tmpFile = File(tmpDirectory, "$activeTargetModelId.download")
             if (!targetFile.exists() || targetFile.length() <= 0) {
                 var loadedFromAsset = false
                 try {
                     val assetName = "${targetModelInfo.id}.bin"
                     context.assets.open(assetName).use { input ->
-                        FileOutputStream(targetFile).use { output ->
+                        FileOutputStream(tmpFile).use { output ->
                             input.copyTo(output)
                         }
                     }
-                    if (targetFile.exists() && targetFile.length() > 0) {
+                    if (tmpFile.exists() && tmpFile.length() > 0) {
                         loadedFromAsset = true
                     }
                 } catch (_: Exception) {}
@@ -266,34 +267,69 @@ class ModelProvisioningManager(
                         totalBytes = targetModelInfo.sizeBytes
                     )
 
-                    val downloadSuccess = downloadArtifact(targetModelInfo, targetFile)
-                    if (!downloadSuccess || !targetFile.exists() || targetFile.length() <= 0) {
+                    val downloadSuccess = downloadArtifact(targetModelInfo, tmpFile)
+                    if (!downloadSuccess || !tmpFile.exists() || tmpFile.length() <= 0) {
                         _progress.value = _progress.value.copy(
                             stage = ProvisioningStage.ERROR,
-                            currentStepText = "No local model weights found. Please connect to network to download or import model file manually.",
-                            errorMessage = "Model unavailable. Please download or import verified model weights.",
+                            currentStepText = "No local model weights found. Connect to network to download or import model file manually.",
+                            errorMessage = "Model weights unavailable. Connect to internet to download or import via Model Center.",
                             canRetry = true
                         )
                         return@withContext
                     }
                 }
+
+                // STEP 4: CHECKSUM & INTEGRITY VERIFICATION
+                _progress.value = _progress.value.copy(
+                    stage = ProvisioningStage.VERIFYING,
+                    currentStepText = "Verifying cryptographic SHA-256 integrity of neural weights...",
+                    progress = 0.75f
+                )
+                val isVerified = verifyModelArtifact(tmpFile, targetModelInfo.checksum)
+                if (!isVerified) {
+                    tmpFile.delete()
+                    _progress.value = _progress.value.copy(
+                        stage = ProvisioningStage.ERROR,
+                        currentStepText = "Cryptographic integrity verification failed. File corrupted or invalid checksum.",
+                        errorMessage = "Verification failed.",
+                        canRetry = true
+                    )
+                    return@withContext
+                }
+
+                // STEP 5: ATOMIC INSTALLATION
+                _progress.value = _progress.value.copy(
+                    stage = ProvisioningStage.INSTALLING,
+                    currentStepText = "Atomically moving verified weights to sovereign storage...",
+                    progress = 0.82f
+                )
+                if (targetFile.exists()) targetFile.delete()
+                val moved = tmpFile.renameTo(targetFile)
+                if (!moved) {
+                    tmpFile.copyTo(targetFile, overwrite = true)
+                    tmpFile.delete()
+                }
+                modelManager.scanAndVerifyInstalledModels()
+            } else {
+                // Target file exists, verify integrity
+                _progress.value = _progress.value.copy(
+                    stage = ProvisioningStage.VERIFYING,
+                    currentStepText = "Verifying local neural weights...",
+                    progress = 0.80f
+                )
+                val isVerified = verifyModelArtifact(targetFile)
+                if (!isVerified) {
+                    targetFile.delete()
+                    _progress.value = _progress.value.copy(
+                        stage = ProvisioningStage.ERROR,
+                        currentStepText = "Local model file corrupted. Please retry download.",
+                        errorMessage = "Corrupted local file.",
+                        canRetry = true
+                    )
+                    return@withContext
+                }
+                modelManager.scanAndVerifyInstalledModels()
             }
-
-            // STEP 4: CHECKSUM & INTEGRITY VERIFICATION
-            _progress.value = _progress.value.copy(
-                stage = ProvisioningStage.VERIFYING,
-                currentStepText = "Verifying cryptographic SHA-256 integrity of neural weights...",
-                progress = 0.70f
-            )
-            delay(50)
-
-            // STEP 5: ATOMIC INSTALLATION
-            _progress.value = _progress.value.copy(
-                stage = ProvisioningStage.INSTALLING,
-                currentStepText = "Registering model in local sovereign catalog...",
-                progress = 0.80f
-            )
-            modelManager.scanAndVerifyInstalledModels()
 
             // STEP 6: RUNTIME LOADING
             _progress.value = _progress.value.copy(
@@ -377,9 +413,8 @@ class ModelProvisioningManager(
     }
 
     private suspend fun downloadArtifact(model: EdgeModel, destinationFile: File): Boolean = withContext(Dispatchers.IO) {
-        val tmpFile = File(tmpDirectory, "${model.id}.download")
-        if (tmpFile.exists()) {
-            tmpFile.delete()
+        if (destinationFile.exists()) {
+            destinationFile.delete()
         }
 
         if (!model.downloadUrl.startsWith("http://") && !model.downloadUrl.startsWith("https://")) {
@@ -423,8 +458,8 @@ class ModelProvisioningManager(
                 var lastDownloaded = 0L
 
                 conn.inputStream.use { input ->
-                    FileOutputStream(tmpFile).use { output ->
-                        val buffer = ByteArray(32 * 1024)
+                    FileOutputStream(destinationFile).use { output ->
+                        val buffer = ByteArray(64 * 1024)
                         var read: Int
                         while (input.read(buffer).also { read = it } != -1) {
                             output.write(buffer, 0, read)
@@ -448,27 +483,19 @@ class ModelProvisioningManager(
                                 lastDownloaded = downloaded
                             }
                         }
+                        output.flush()
                     }
                 }
 
                 conn.disconnect()
-
-                if (tmpFile.exists() && tmpFile.length() > 0) {
-                    if (destinationFile.exists()) destinationFile.delete()
-                    val moved = tmpFile.renameTo(destinationFile)
-                    if (!moved) {
-                        tmpFile.copyTo(destinationFile, overwrite = true)
-                        tmpFile.delete()
-                    }
-                    return@withContext true
-                }
+                return@withContext destinationFile.exists() && destinationFile.length() > 0
             }
             conn?.disconnect()
         } catch (_: Exception) {
             // Failed network download
         }
 
-        if (tmpFile.exists()) tmpFile.delete()
+        if (destinationFile.exists()) destinationFile.delete()
         false
     }
 }

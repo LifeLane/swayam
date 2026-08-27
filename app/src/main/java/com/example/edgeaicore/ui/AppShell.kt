@@ -351,5 +351,8 @@ fun AppShell(
     }
 
     // First-Launch / Preparing Environment Overlay
-    ProvisioningOverlay(edgeAI = edgeAI)
+    ProvisioningOverlay(
+        edgeAI = edgeAI,
+        onOpenModelCenter = { currentSubDestination = SubDestination.ModelCenter }
+    )
 }
