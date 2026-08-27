@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.example.edgeaicore.ui.playground.PlaygroundMode
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -284,7 +285,10 @@ fun AppShell(
                                     ToolsScreen(
                                         edgeAI = edgeAI,
                                         onNavigateToConnectedServices = { currentSubDestination = SubDestination.ConnectedServices },
-                                        onNavigateToPlayground = { currentSubDestination = SubDestination.ToolPlayground }
+                                        onNavigateToPlayground = {
+                                            playgroundViewModel.selectMode(PlaygroundMode.TOOLS)
+                                            currentMainDestination = MainDestination.PLAYGROUND
+                                        }
                                     )
                                 }
                                 MainDestination.PROFILE -> {
@@ -298,7 +302,10 @@ fun AppShell(
                                         onNavigateToBenchmark = { currentSubDestination = SubDestination.Benchmark },
                                         onNavigateToAudioJournal = { currentSubDestination = SubDestination.AudioJournal },
                                         onNavigateToRoutines = { currentSubDestination = SubDestination.Routines },
-                                        onNavigateToToolPlayground = { currentSubDestination = SubDestination.ToolPlayground },
+                                        onNavigateToToolPlayground = {
+                                            playgroundViewModel.selectMode(PlaygroundMode.TOOLS)
+                                            currentMainDestination = MainDestination.PLAYGROUND
+                                        },
                                         onOpenDeveloperModal = { showDeveloperModal = true }
                                     )
                                 }

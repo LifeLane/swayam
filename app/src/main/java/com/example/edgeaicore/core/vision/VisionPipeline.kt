@@ -2,7 +2,6 @@ package com.example.edgeaicore.core.vision
 
 import android.content.Context
 import android.graphics.Bitmap
-import com.example.edgeaicore.core.litert.LiteRTEngine
 import com.example.edgeaicore.core.mediapipe.MediaPipeEngine
 import com.example.edgeaicore.core.mediapipe.VisionResult
 import kotlinx.coroutines.Dispatchers
@@ -19,8 +18,7 @@ import kotlinx.coroutines.withContext
  */
 class VisionPipeline(
     private val context: Context,
-    private val mediaPipeEngine: MediaPipeEngine,
-    private val liteRTEngine: LiteRTEngine
+    private val mediaPipeEngine: MediaPipeEngine
 ) {
     private val _latestResult = MutableStateFlow(VisionResult())
     val latestResult: StateFlow<VisionResult> = _latestResult.asStateFlow()

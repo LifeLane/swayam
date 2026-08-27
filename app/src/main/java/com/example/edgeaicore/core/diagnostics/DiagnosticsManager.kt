@@ -287,6 +287,16 @@ class PerformanceMonitor(private val context: Context) {
         _metrics.value = _metrics.value.copy(networkLatencyMs = latencyMs)
     }
 
+    fun isNetworkConnected(): Boolean {
+        return try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+            val activeNetwork = cm?.activeNetworkInfo
+            activeNetwork != null && activeNetwork.isConnected
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private fun getBatteryInfoWithTemp(): Triple<Int, Boolean, Float> {
         return try {
             val ifilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)

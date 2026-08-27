@@ -66,7 +66,6 @@ fun AppCard(
 fun AIStatus(
     providerType: AIProviderType = AIProviderType.LOCAL,
     isOffline: Boolean = false,
-    isDemo: Boolean = false,
     hardwareAccelerator: String = "NPU / GPU ACCELERATED",
     compact: Boolean = false,
     onClick: (() -> Unit)? = null,
@@ -83,7 +82,6 @@ fun AIStatus(
         AIStatusCard(
             providerType = providerType,
             isOffline = isOffline,
-            isDemo = isDemo,
             hardwareAccelerator = hardwareAccelerator,
             onClick = onClick,
             modifier = modifier
@@ -99,14 +97,12 @@ fun AIStatus(
 fun AIStatusCard(
     providerType: AIProviderType,
     isOffline: Boolean = false,
-    isDemo: Boolean = false,
     hardwareAccelerator: String = "NPU / GPU",
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val statusText = when {
         isOffline -> "OFFLINE"
-        isDemo -> "DEMO AI"
         providerType == AIProviderType.LOCAL -> "LOCAL AI"
         providerType == AIProviderType.PRIVATE_SERVER -> "PRIVATE AI"
         providerType == AIProviderType.CLOUD -> "CLOUD AI"
@@ -115,7 +111,6 @@ fun AIStatusCard(
 
     val stateSubtitle = when {
         isOffline -> "Running 100% on device"
-        isDemo -> "Simulated edge environment"
         providerType == AIProviderType.LOCAL -> "Ready • On-Device Neural Engine"
         providerType == AIProviderType.PRIVATE_SERVER -> "Connected • Private Encrypted Tunnel"
         providerType == AIProviderType.CLOUD -> "Active • Consent Verified"
@@ -124,7 +119,6 @@ fun AIStatusCard(
 
     val (badgeBg, badgeFg, icon) = when {
         isOffline -> Triple(OfflineGray.copy(alpha = 0.15f), OfflineGray, Icons.Default.CloudOff)
-        isDemo -> Triple(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.primary, Icons.Default.Science)
         providerType == AIProviderType.LOCAL -> Triple(LocalAIGreen.copy(alpha = 0.15f), LocalAIGreen, Icons.Default.Memory)
         providerType == AIProviderType.PRIVATE_SERVER -> Triple(PrivateServerAmber.copy(alpha = 0.15f), PrivateServerAmber, Icons.Default.Dns)
         providerType == AIProviderType.CLOUD -> Triple(CloudAIBorder.copy(alpha = 0.15f), CloudAIBorder, Icons.Default.Cloud)

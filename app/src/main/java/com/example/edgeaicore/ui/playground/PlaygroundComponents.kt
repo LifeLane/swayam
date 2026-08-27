@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.example.edgeaicore.core.common.AIProviderType
 import com.example.edgeaicore.core.common.ExecutionBackend
 import com.example.edgeaicore.core.explanation.ExplanationRecord
-import com.example.edgeaicore.ui.console.RichMessageContent
+import com.example.edgeaicore.ui.common.RichMessageContent
 import com.example.ui.theme.LocalAIGreen
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -420,6 +420,7 @@ fun PlaygroundComposer(
                                 PlaygroundMode.DOCUMENTS -> Icons.Default.Description
                                 PlaygroundMode.MEMORY -> Icons.Default.Psychology
                                 PlaygroundMode.AGENTS -> Icons.Default.SmartToy
+                                PlaygroundMode.TOOLS -> Icons.Default.Build
                             },
                             contentDescription = null,
                             modifier = Modifier.size(14.dp)
@@ -468,6 +469,7 @@ fun PlaygroundComposer(
                             PlaygroundMode.DOCUMENTS -> "Query your indexed local documents..."
                             PlaygroundMode.MEMORY -> "Query or record personal memory..."
                             PlaygroundMode.AGENTS -> "Give SWAYAM an autonomous goal..."
+                            PlaygroundMode.TOOLS -> "Execute tool or test MCP endpoint..."
                         },
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)

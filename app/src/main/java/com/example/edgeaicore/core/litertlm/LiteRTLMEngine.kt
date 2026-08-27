@@ -1,14 +1,15 @@
 package com.example.edgeaicore.core.litertlm
 
 import android.content.Context
-import com.example.edgeaicore.core.common.AIProviderType
 import com.example.edgeaicore.core.common.EdgeAIError
 import com.example.edgeaicore.core.common.EdgeResult
+import com.example.edgeaicore.core.common.AIProviderType
 import com.example.edgeaicore.core.common.ExecutionBackend
-import com.example.edgeaicore.core.litert.LiteRTEngine
 import com.example.edgeaicore.core.models.EdgeModel
 import com.example.edgeaicore.core.models.LocalModelManager
+import com.example.edgeaicore.core.litertlm.ModelCapabilities
 import com.example.edgeaicore.core.models.ModelStatus
+import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -21,66 +22,26 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import java.io.File
 
-data class GenerationRequest(
-    val prompt: String,
-    val systemInstruction: String? = null,
-    val context: String? = null,
-    val temperature: Float = 0.7f,
-    val topK: Int = 40,
-    val topP: Float = 0.95f,
-    val maxTokens: Int = 1024,
-    val stream: Boolean = true,
-    val modelId: String = "gemma-2b-it-litert",
-    val stopSequences: List<String> = emptyList()
-)
-
-data class GenerationResponse(
-    val text: String,
-    val model: String,
-    val latencyMs: Long,
-    val tokensGenerated: Int,
-    val tokensPerSecond: Double,
-    val provider: AIProviderType = AIProviderType.LOCAL,
-    val source: String = "LiteRT-LM On-Device",
-    val success: Boolean = true,
-    val error: String? = null
-)
-
-/**
- * Local LLM Runtime Abstraction:
- * Authoritative contract for genuine on-device neural language model inference.
- */
-interface LocalLLMRuntime {
-    val status: StateFlow<ModelStatus>
-    val activeBackend: StateFlow<ExecutionBackend>
-    suspend fun load(modelPath: String, backend: ExecutionBackend = ExecutionBackend.AUTO): EdgeResult<Boolean>
-    suspend fun unload(): EdgeResult<Boolean>
-    fun isReady(): Boolean
-    suspend fun generate(request: GenerationRequest): EdgeResult<GenerationResponse>
-    fun stream(request: GenerationRequest): Flow<String>
-    fun modelInfo(): EdgeModel?
-    fun runtimeInfo(): String
-    fun backendInfo(): ExecutionBackend
-}
-
 /**
  * LiteRTLMEngine:
- * Executes authentic neural generation across on-device contexts.
- * Binds prompt formatting, tokenizer, tensor memory mapping, and autoregressive generation.
+ * High-performance on-device neural language model inference engine using MediaPipe LlmInference.
+ * Guarantees zero network egress and sovereign execution.
  */
 class LiteRTLMEngine(
     private val context: Context,
     private val modelManager: LocalModelManager? = null
-) : LocalLLMRuntime, PrivateModelRuntime {
-    private val _status = MutableStateFlow<ModelStatus>(ModelStatus.UNLOADED)
-    override val status: StateFlow<ModelStatus> = _status.asStateFlow()
+) : PrivateModelRuntime {
 
-    private val _activeBackend = MutableStateFlow<ExecutionBackend>(ExecutionBackend.CPU)
-    override val activeBackend: StateFlow<ExecutionBackend> = _activeBackend.asStateFlow()
+    private val _status = MutableStateFlow(ModelStatus.NOT_INSTALLED)
+    val status: StateFlow<ModelStatus> = _status.asStateFlow()
+
+    private val _activeBackend = MutableStateFlow(ExecutionBackend.CPU)
+    val activeBackend: StateFlow<ExecutionBackend> = _activeBackend.asStateFlow()
 
     private var activeModel: EdgeModel? = null
     private var activeModelPath: String? = null
-    private val liteRTEngine = LiteRTEngine(context)
+
+    private var llmInference: LlmInference? = null
     private val tokenizer = LiteRTTokenizer()
 
     suspend fun initialize(modelId: String, backend: ExecutionBackend): EdgeResult<Boolean> = withContext(Dispatchers.IO) {
@@ -95,6 +56,7 @@ class LiteRTLMEngine(
 
         val localPath = targetModel?.localPath ?: File(context.filesDir, "edge_models/${targetModel?.id ?: modelId}.bin").absolutePath
         val file = File(localPath)
+
         if (file.exists() && file.length() > 0) {
             return@withContext load(localPath, backend)
         }
@@ -122,7 +84,7 @@ class LiteRTLMEngine(
 
     override fun getModelInfo(): EdgeModel? = activeModel
 
-    override suspend fun load(modelPath: String, backend: ExecutionBackend): EdgeResult<Boolean> = withContext(Dispatchers.IO) {
+    suspend fun load(modelPath: String, backend: ExecutionBackend): EdgeResult<Boolean> = withContext(Dispatchers.IO) {
         val file = File(modelPath)
         if (!file.exists() || file.length() <= 0) {
             _status.value = ModelStatus.ERROR
@@ -132,30 +94,38 @@ class LiteRTLMEngine(
         }
 
         _status.value = ModelStatus.LOADING
+
         try {
             val resolvedBackend = if (backend == ExecutionBackend.AUTO) ExecutionBackend.GPU else backend
-            val adapterResult = liteRTEngine.loadModel(modelPath, resolvedBackend)
             
-            if (adapterResult is EdgeResult.Success) {
-                _activeBackend.value = resolvedBackend
-                activeModelPath = modelPath
-                val mgr = modelManager ?: LocalModelManager(context)
-                activeModel = mgr.getInstalledModels().firstOrNull { it.localPath == modelPath }
-                _status.value = ModelStatus.READY
-                EdgeResult.Success(true)
-            } else {
-                _status.value = ModelStatus.ERROR
-                EdgeResult.Failure((adapterResult as EdgeResult.Failure).error)
-            }
+            // Unload any existing model first
+            llmInference?.close()
+            llmInference = null
+
+            val options = LlmInference.LlmInferenceOptions.builder()
+                .setModelPath(modelPath)
+                .setMaxTokens(1024)
+                .build()
+
+            llmInference = LlmInference.createFromOptions(context, options)
+
+            _activeBackend.value = resolvedBackend
+            activeModelPath = modelPath
+            val mgr = modelManager ?: LocalModelManager(context)
+            activeModel = mgr.getInstalledModels().firstOrNull { it.localPath == modelPath }
+
+            _status.value = ModelStatus.READY
+            EdgeResult.Success(true)
         } catch (e: Exception) {
             _status.value = ModelStatus.ERROR
             EdgeResult.Failure(EdgeAIError.Unknown("Failed to load LiteRT-LM runtime: ${e.message}", e))
         }
     }
 
-    override suspend fun unload(): EdgeResult<Boolean> = withContext(Dispatchers.IO) {
+    suspend fun unload(): EdgeResult<Boolean> = withContext(Dispatchers.IO) {
         try {
-            liteRTEngine.unloadModel()
+            llmInference?.close()
+            llmInference = null
             activeModel = null
             activeModelPath = null
             _status.value = ModelStatus.UNLOADED
@@ -166,14 +136,14 @@ class LiteRTLMEngine(
     }
 
     override fun isReady(): Boolean {
-        return _status.value == ModelStatus.READY && liteRTEngine.isLoaded()
+        return _status.value == ModelStatus.READY && llmInference != null
     }
 
-    override fun modelInfo(): EdgeModel? = activeModel
+    fun modelInfo(): EdgeModel? = activeModel
 
-    override fun runtimeInfo(): String = "LiteRT-LM On-Device Neural Engine"
+    fun runtimeInfo(): String = "LiteRT-LM On-Device Neural Engine"
 
-    override fun backendInfo(): ExecutionBackend = _activeBackend.value
+    fun backendInfo(): ExecutionBackend = _activeBackend.value
 
     override suspend fun generate(request: GenerationRequest): EdgeResult<GenerationResponse> = withContext(Dispatchers.IO) {
         if (!isReady()) {
@@ -189,32 +159,12 @@ class LiteRTLMEngine(
                 systemInstruction = request.systemInstruction,
                 context = request.context
             )
-            val promptTokens = tokenizer.encode(formattedPrompt)
 
-            val generatedTokens = mutableListOf<Int>()
-            val maxTokens = request.maxTokens.coerceIn(1, 2048)
-
-            val passResult = liteRTEngine.executeForwardPass(
-                tokenIds = promptTokens,
-                temperature = request.temperature,
-                topK = request.topK,
-                topP = request.topP,
-                maxNewTokens = maxTokens,
-                onTokenGenerated = { tokenId ->
-                    generatedTokens.add(tokenId)
-                    true
-                }
-            )
-
-            if (passResult is EdgeResult.Failure) {
-                return@withContext EdgeResult.Failure(passResult.error)
-            }
-
-            val rawDecoded = tokenizer.decode(generatedTokens)
-            val generatedText = if (rawDecoded.isNotBlank()) rawDecoded else "READY"
+            val inference = llmInference ?: throw IllegalStateException("Model not loaded")
+            val generatedText = inference.generateResponse(formattedPrompt)
 
             val latency = (System.currentTimeMillis() - startTime).coerceAtLeast(1)
-            val tokenCount = generatedTokens.size.coerceAtLeast(1)
+            val tokenCount = generatedText.split("\\s+".toRegex()).size.coerceAtLeast(1)
             val tokensPerSec = (tokenCount.toDouble() / (latency.toDouble() / 1000.0))
 
             EdgeResult.Success(
@@ -247,35 +197,20 @@ class LiteRTLMEngine(
                 systemInstruction = request.systemInstruction,
                 context = request.context
             )
-            val promptTokens = tokenizer.encode(formattedPrompt)
-            val maxTokens = request.maxTokens.coerceIn(1, 2048)
 
-            val tokenBatch = mutableListOf<Int>()
-            val result = liteRTEngine.executeForwardPass(
-                tokenIds = promptTokens,
-                temperature = request.temperature,
-                topK = request.topK,
-                topP = request.topP,
-                maxNewTokens = maxTokens,
-                onTokenGenerated = { tokenId ->
-                    tokenBatch.add(tokenId)
-                    val textPiece = tokenizer.decode(listOf(tokenId))
-                    if (textPiece.isNotBlank()) {
-                        trySend("$textPiece ")
-                    }
-                    true
-                }
-            )
-
-            if (result is EdgeResult.Failure) {
-                close(IllegalStateException(result.error.message))
-            } else {
-                close()
+            val inference = llmInference ?: throw IllegalStateException("Model not loaded")
+            
+            // Simulating stream until we implement Async properly with MediaPipe progress listener
+            val generatedText = inference.generateResponse(formattedPrompt)
+            val words = generatedText.split(" ")
+            words.forEach { word ->
+                trySend("$word ")
+                kotlinx.coroutines.delay(20)
             }
+            close()
         } catch (e: Exception) {
             close(e)
         }
-
         awaitClose { /* Cleanup */ }
     }.flowOn(Dispatchers.Default)
 }

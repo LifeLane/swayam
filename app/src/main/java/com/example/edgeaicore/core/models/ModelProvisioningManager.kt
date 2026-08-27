@@ -97,8 +97,9 @@ class ModelProvisioningManager(
     }
 
     fun startAutomaticProvisioning(forceRecheck: Boolean = false) {
-        activeJob?.cancel()
+        val previousJob = activeJob
         activeJob = scope.launch {
+            previousJob?.cancelAndJoin()
             runProvisioningPipeline(forceRecheck)
         }
     }
@@ -244,21 +245,33 @@ class ModelProvisioningManager(
 
             // STEP 3: ARTIFACT ACQUISITION (Download or Verify Existing)
             if (!targetFile.exists() || targetFile.length() <= 0) {
-                _progress.value = _progress.value.copy(
-                    stage = ProvisioningStage.DOWNLOADING,
-                    currentStepText = "Downloading $targetModelName from verified manifest...",
-                    progress = 0.15f,
-                    totalBytes = targetModelInfo.sizeBytes
-                )
+                var loadedFromAsset = false
+                try {
+                    val assetName = "${targetModelInfo.id}.bin"
+                    context.assets.open(assetName).use { input ->
+                        FileOutputStream(targetFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    if (targetFile.exists() && targetFile.length() > 0) {
+                        loadedFromAsset = true
+                    }
+                } catch (_: Exception) {}
 
-                val downloadSuccess = downloadArtifact(targetModelInfo, targetFile)
-                if (!downloadSuccess) {
-                    val baselineProvisioned = ensureBaselineModelWeights(targetFile, targetModelInfo)
-                    if (!baselineProvisioned) {
+                if (!loadedFromAsset) {
+                    _progress.value = _progress.value.copy(
+                        stage = ProvisioningStage.DOWNLOADING,
+                        currentStepText = "Acquiring $targetModelName weights from verified manifest...",
+                        progress = 0.15f,
+                        totalBytes = targetModelInfo.sizeBytes
+                    )
+
+                    val downloadSuccess = downloadArtifact(targetModelInfo, targetFile)
+                    if (!downloadSuccess || !targetFile.exists() || targetFile.length() <= 0) {
                         _progress.value = _progress.value.copy(
                             stage = ProvisioningStage.ERROR,
-                            currentStepText = "Unable to download model weights. Please check network connection or import model manually.",
-                            errorMessage = "Model download failed. Offline mode active without verified weights.",
+                            currentStepText = "No local model weights found. Please connect to network to download or import model file manually.",
+                            errorMessage = "Model unavailable. Please download or import verified model weights.",
                             canRetry = true
                         )
                         return@withContext
@@ -372,6 +385,7 @@ class ModelProvisioningManager(
         if (!model.downloadUrl.startsWith("http://") && !model.downloadUrl.startsWith("https://")) {
             return@withContext false
         }
+        if (!model.downloadUrl.endsWith(".bin") && !model.downloadUrl.endsWith(".tflite") && !model.downloadUrl.endsWith(".task") && !model.downloadUrl.endsWith(".gguf")) { return@withContext false }
 
         try {
             val url = URL(model.downloadUrl)
@@ -432,39 +446,5 @@ class ModelProvisioningManager(
 
         if (tmpFile.exists()) tmpFile.delete()
         false
-    }
-
-    private fun ensureBaselineModelWeights(destinationFile: File, model: EdgeModel): Boolean {
-        return try {
-            val assetName = "${model.id}.bin"
-            var loadedFromAsset = false
-            try {
-                context.assets.open(assetName).use { input ->
-                    FileOutputStream(destinationFile).use { output ->
-                        input.copyTo(output)
-                    }
-                }
-                if (destinationFile.exists() && destinationFile.length() > 0) {
-                    loadedFromAsset = true
-                }
-            } catch (_: Exception) {}
-
-            if (loadedFromAsset) return true
-
-            // Generate sovereign local baseline neural weight tensor binary
-            FileOutputStream(destinationFile).use { out ->
-                val header = "LITERT_LM_TENSOR_V2:${model.id}:VOCAB=32000:DIM=2048:LAYERS=18\n".toByteArray(Charsets.UTF_8)
-                out.write(header)
-                val buffer = ByteArray(128 * 1024)
-                for (i in buffer.indices) {
-                    buffer[i] = ((i * 31 + (i % 251) * 17) and 0xFF).toByte()
-                }
-                out.write(buffer)
-                out.flush()
-            }
-            destinationFile.exists() && destinationFile.length() > 0
-        } catch (_: Exception) {
-            false
-        }
     }
 }

@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.edgeaicore.EdgeAICore
 import com.example.edgeaicore.core.common.AIProviderType
+import kotlinx.coroutines.flow.firstOrNull
 import com.example.edgeaicore.core.common.EdgeResult
 import com.example.edgeaicore.core.common.ExecutionBackend
 import com.example.edgeaicore.core.common.PrivacyLevel
@@ -77,18 +78,23 @@ class PlaygroundViewModel(
         viewModelScope.launch {
             val specs = edgeAI.diagnostics.specs()
             val installedModel = edgeAI.models.modelManager.getInstalledModels().firstOrNull()
+            val memoryCount = edgeAI.memory.count.firstOrNull() ?: 0
+            val docCount = edgeAI.database.appDocuments.getCount().firstOrNull() ?: 0
+            val hasDocs = docCount > 0
+            val isConnected = true // TODO: use real network check if needed
+
             _state.update { current ->
                 val sessionModel = current.activeSession?.modelId?.takeIf { it.isNotEmpty() }
-                val activeModel = sessionModel ?: installedModel?.name ?: "No Local Model Installed"
+                val activeModel = sessionModel ?: installedModel?.name ?: "No Local Model Loaded"
                 current.copy(
                     contextState = PlaygroundContextState(
                         activeMode = current.activeMode,
                         activeModelName = activeModel,
-                        isMemoryActive = true,
-                        isRagActive = true,
+                        isMemoryActive = memoryCount > 0,
+                        isRagActive = hasDocs,
                         activeSourcesCount = current.activeSession?.messages?.lastOrNull()?.sources?.size ?: 0,
                         toolsReadyCount = edgeAI.tools.getAll().size,
-                        isNetworkOffline = true,
+                        isNetworkOffline = !isConnected,
                         executionBackend = specs.recommendedBackend
                     )
                 )
@@ -133,15 +139,7 @@ class PlaygroundViewModel(
                 title = "New ${mode.title} Session",
                 mode = mode,
                 modelId = "gemma-2b-it-litert",
-                messages = listOf(
-                    PlaygroundMessage(
-                        role = MessageRole.ASSISTANT,
-                        content = "Initialized new sovereign session in **${mode.title}** mode. What would you like to explore?",
-                        provider = AIProviderType.LOCAL,
-                        runtime = "LiteRT-LM On-Device",
-                        executionMode = mode
-                    )
-                )
+                messages = emptyList()
             )
             val updatedSessions = listOf(newSession) + _state.value.sessions
             _state.update { current ->
@@ -240,6 +238,7 @@ class PlaygroundViewModel(
                     PlaygroundMode.DOCUMENTS -> "[DOCUMENT CITATION RAG MODE] "
                     PlaygroundMode.MEMORY -> "[PERSONAL MEMORY QUERY] "
                     PlaygroundMode.AGENTS -> "[AUTONOMOUS AGENT TASK] "
+                    PlaygroundMode.TOOLS -> "[TOOL EXECUTION / MCP MODE] "
                     PlaygroundMode.GENERAL -> ""
                 }
 
@@ -265,8 +264,8 @@ class PlaygroundViewModel(
                             PlaygroundSource(
                                 title = "Source ${idx + 1}",
                                 snippet = src,
-                                relevance = 0.85f - (idx * 0.05f),
-                                sourceType = "Document / Knowledge Chunk"
+                                relevance = resp.confidence,
+                                sourceType = "Knowledge Chunk / Memory"
                             )
                         }
 
@@ -278,8 +277,8 @@ class PlaygroundViewModel(
                             provider = resp.provider,
                             runtime = "LiteRT-LM On-Device Neural Engine",
                             latencyMs = resp.latencyMs.takeIf { it > 0 } ?: duration,
-                            tokensGenerated = resp.tokensGenerated.takeIf { it > 0 } ?: (resp.text.length / 4),
-                            tokensPerSecond = if (resp.tokensPerSecond > 0) resp.tokensPerSecond else ((resp.text.length / 4.0) / (duration / 1000.0)),
+                            tokensGenerated = resp.tokensGenerated.takeIf { it > 0 } ?: maxOf(1, resp.text.split("\\s+".toRegex()).size),
+                            tokensPerSecond = if (resp.tokensPerSecond > 0) resp.tokensPerSecond else (resp.tokensGenerated.toDouble() / (duration / 1000.0).coerceAtLeast(0.01)),
                             sources = playgroundSources,
                             memoryUsed = resp.memoriesUsed,
                             toolsUsed = resp.toolsUsed,

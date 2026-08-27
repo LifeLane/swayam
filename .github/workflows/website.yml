@@ -1,14 +1,10 @@
-name: Deploy Website to GitHub Pages
+name: Deploy Website
 
 on:
   push:
     branches:
       - main
       - master
-    paths:
-      - 'website/**'
-      - '.github/workflows/website.yml'
-
   workflow_dispatch:
 
 permissions:
@@ -17,29 +13,24 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages-${{ github.ref }}
+  group: "pages"
   cancel-in-progress: true
 
 jobs:
-  deploy_pages:
-    name: Deploy GitHub Pages
+  deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Static Website Artifact
+        uses: actions/configure-pages@v4
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './website'
-
+          path: './docs'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

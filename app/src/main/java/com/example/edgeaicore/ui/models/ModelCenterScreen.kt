@@ -59,6 +59,36 @@ fun ModelCenterScreen(
     var installingModelId by remember { mutableStateOf<String?>(null) }
     var installProgress by remember { mutableStateOf(0f) }
     var actionNotification by remember { mutableStateOf<String?>(null) }
+    var importModelTarget by remember { mutableStateOf<EdgeModel?>(null) }
+    
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val importLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null && importModelTarget != null) {
+            val model = importModelTarget!!
+            importModelTarget = null
+            coroutineScope.launch {
+                try {
+                    val contentResolver = context.contentResolver
+                    val tmpFile = java.io.File(context.cacheDir, "${model.id}_import.tmp")
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        tmpFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    val result = edgeAI.models.manager.importLocalModel(tmpFile, model.name, model.type, model.capabilities)
+                    actionNotification = when (result) {
+                        is com.example.edgeaicore.core.common.EdgeResult.Success -> "Model '${model.name}' imported successfully."
+                        is com.example.edgeaicore.core.common.EdgeResult.Failure -> "Import failed: ${result.error.message}"
+                        else -> "Unknown result"
+                    }
+                } catch (e: Exception) {
+                    actionNotification = "Import error: ${e.message}"
+                }
+            }
+        }
+    }
 
     val filteredModels = remember(modelsList, searchQuery, selectedFilter) {
         modelsList.filter { model ->
@@ -254,6 +284,10 @@ fun ModelCenterScreen(
                         },
                         onToggleEnabled = { enabled ->
                             edgeAI.models.setEnabled(model.id, enabled)
+                        },
+                        onImport = { 
+                            importModelTarget = model
+                            importLauncher.launch(arrayOf("*/*"))
                         }
                     )
                 }
@@ -282,8 +316,10 @@ private fun ModelItemCard(
     installProgress: Float,
     onInstall: () -> Unit,
     onUninstall: () -> Unit,
-    onToggleEnabled: (Boolean) -> Unit
+    onToggleEnabled: (Boolean) -> Unit,
+    onImport: () -> Unit
 ) {
+    val hasDirectUrl = model.downloadUrl.endsWith(".bin") || model.downloadUrl.endsWith(".tflite") || model.downloadUrl.endsWith(".task")
     AppCard(
         backgroundColor = MaterialTheme.colorScheme.surface,
         borderColor = if (model.isInstalled && model.isEnabled) LocalAIGreen.copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant,
@@ -440,15 +476,28 @@ private fun ModelItemCard(
                             Text("Uninstall", fontSize = 11.sp)
                         }
                     } else {
-                        Button(
-                            onClick = onInstall,
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
-                            modifier = Modifier.testTag("install_model_${model.id}")
-                        ) {
-                            Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Download & Install", fontSize = 11.sp)
+                        if (hasDirectUrl) {
+                            Button(
+                                onClick = onInstall,
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                                modifier = Modifier.testTag("install_model_${model.id}")
+                            ) {
+                                Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Download & Install", fontSize = 11.sp)
+                            }
+                        } else {
+                            Button(
+                                onClick = onImport,
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                                modifier = Modifier.testTag("import_model_${model.id}")
+                            ) {
+                                Icon(imageVector = Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Import Model", fontSize = 11.sp)
+                            }
                         }
                     }
                 }

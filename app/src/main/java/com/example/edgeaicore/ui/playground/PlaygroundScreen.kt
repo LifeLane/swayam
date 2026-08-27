@@ -534,6 +534,11 @@ private fun EmptyPlaygroundGreeting(
                     "Audit local storage integrity and clean temporary caches.",
                     "Run autonomous tool validation across all native capabilities."
                 )
+                PlaygroundMode.TOOLS -> listOf(
+                    "Execute battery status diagnostic tool.",
+                    "Inspect active MCP tool registrations and permissions.",
+                    "Test mathematical calculations via sovereign sandbox."
+                )
             }
 
             suggestions.forEach { prompt ->

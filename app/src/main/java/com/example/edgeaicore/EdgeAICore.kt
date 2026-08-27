@@ -41,7 +41,6 @@ import com.example.edgeaicore.core.knowledge.ChunkingEngine
 import com.example.edgeaicore.core.knowledge.KnowledgeEngine
 import com.example.edgeaicore.core.knowledge.KnowledgeIngestionPipeline
 import com.example.edgeaicore.core.knowledge.KnowledgeSearchEngine
-import com.example.edgeaicore.core.litert.LiteRTEngine
 import com.example.edgeaicore.core.litertlm.GenerationResponse
 import com.example.edgeaicore.core.litertlm.LiteRTLMEngine
 import com.example.edgeaicore.core.mcp.InternalMcpServer
@@ -94,7 +93,6 @@ class EdgeAICore private constructor(val context: Context) {
     internal val deviceCapManager = DeviceCapabilityManager(context)
     internal val perfMonitor = PerformanceMonitor(context)
     internal val modelManager = LocalModelManager(context)
-    internal val liteRTEngine = LiteRTEngine(context)
     internal val liteRTLMEngine = LiteRTLMEngine(context)
     internal val modelProvisioningManager = com.example.edgeaicore.core.models.ModelProvisioningManager(
         context = context,
@@ -103,7 +101,7 @@ class EdgeAICore private constructor(val context: Context) {
         deviceCapabilityManager = deviceCapManager
     )
     internal val mediaPipeEngine = MediaPipeEngine(context)
-    internal val visionPipeline = VisionPipeline(context, mediaPipeEngine, liteRTEngine)
+    internal val visionPipeline = VisionPipeline(context, mediaPipeEngine)
     internal val embeddingEngine = EmbeddingEngine(context, LocalEmbeddingProvider())
     internal val memoryEngine = MemoryEngine(context, embeddingEngine)
     internal val contextEngine = ContextEngine(context, memoryEngine)

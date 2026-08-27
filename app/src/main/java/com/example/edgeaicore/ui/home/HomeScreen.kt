@@ -123,7 +123,6 @@ fun HomeScreen(
             AIStatus(
                 providerType = if (privacyState.cloudAiEnabled) AIProviderType.CLOUD else if (privacyState.privateServerEnabled) AIProviderType.PRIVATE_SERVER else AIProviderType.LOCAL,
                 isOffline = !privacyState.cloudAiEnabled && !privacyState.privateServerEnabled,
-                isDemo = false,
                 hardwareAccelerator = "${specs.recommendedBackend.name} ACCELERATED",
                 onClick = onOpenOperatingCenter
             )

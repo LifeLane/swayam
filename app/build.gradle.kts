@@ -17,18 +17,20 @@ android {
     applicationId = "com.mitsara.swayam"
     minSdk = 24
     targetSdk = 36
-    versionCode = 301
-    versionName = "3.0.1"
+    versionCode = 302
+    versionName = "3.0.2"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   signingConfigs {
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      if (file(keystorePath).exists()) {
+          storeFile = file(keystorePath)
+          storePassword = System.getenv("STORE_PASSWORD")
+          keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
+          keyPassword = System.getenv("KEY_PASSWORD")
+      }
     }
   }
 
@@ -37,7 +39,11 @@ android {
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("release")
+      
+      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
+      if (file(keystorePath).exists()) {
+          signingConfig = signingConfigs.getByName("release")
+      }
     }
   }
   compileOptions {
@@ -87,6 +93,7 @@ dependencies {
   implementation(libs.androidx.navigation.compose)
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
+  implementation(libs.mediapipe.tasks.genai)
   implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)

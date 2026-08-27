@@ -45,7 +45,7 @@ import com.example.edgeaicore.core.explanation.ExplanationRecord
 import com.example.edgeaicore.core.policy.ToolActionProposal
 import com.example.edgeaicore.ui.common.AppCard
 import com.example.edgeaicore.ui.common.ResponseActionToolbar
-import com.example.edgeaicore.ui.console.RichMessageContent
+import com.example.edgeaicore.ui.common.RichMessageContent
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat

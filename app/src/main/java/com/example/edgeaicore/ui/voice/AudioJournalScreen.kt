@@ -60,36 +60,9 @@ fun AudioJournalScreen(
     var recordingDuration by remember { mutableIntStateOf(0) }
     var isTranscribing by remember { mutableStateOf(false) }
 
-    // Sample Recorded Audio Journals
+    // Real Recorded Audio Journals
     var audioEntries by remember {
-        mutableStateOf(
-            listOf(
-                AudioJournalEntry(
-                    id = "audio-1",
-                    title = "Strategy Meeting & Edge Model Deployment",
-                    durationSeconds = 48,
-                    createdAt = System.currentTimeMillis() - 3600000L * 2,
-                    summary = "Discussed migrating LiteRT delegates to INT4 quantization on Snapdragon NPU. Verified zero data egress security protocol.",
-                    actionItems = listOf("Benchmark TTFT on NPU", "Update MCP ToolGateway schema", "Release APK build v1.2"),
-                    utterances = listOf(
-                        Utterance(speaker = "Speaker 1 (You)", text = "Let's review the on-device inference speed for the new 2B parameter model.", timestamp = "0:04"),
-                        Utterance(speaker = "Speaker 2 (Alex)", text = "We tested INT4 quantization and achieved 44 tokens per second with 1.2GB RAM footprint.", timestamp = "0:18"),
-                        Utterance(speaker = "Speaker 1 (You)", text = "Perfect, let's keep all memory embeddings 100% offline in SQLite.", timestamp = "0:36")
-                    )
-                ),
-                AudioJournalEntry(
-                    id = "audio-2",
-                    title = "Morning Voice Thought: Architecture Ideas",
-                    durationSeconds = 22,
-                    createdAt = System.currentTimeMillis() - 86400000L,
-                    summary = "Reflections on building proactive autonomous routines for morning briefings and battery-aware vector indexing.",
-                    actionItems = listOf("Implement wake-up morning briefing pipeline", "Add battery level trigger"),
-                    utterances = listOf(
-                        Utterance(speaker = "Speaker 1 (You)", text = "Idea: What if the edge agent compiles a daily morning brief automatically while the phone is charging overnight?", timestamp = "0:02")
-                    )
-                )
-            )
-        )
+        mutableStateOf<List<AudioJournalEntry>>(emptyList())
     }
 
     // Recording Timer Loop
@@ -104,24 +77,28 @@ fun AudioJournalScreen(
     }
 
     fun stopRecordingAndTranscribe() {
+        val duration = maxOf(1, recordingDuration)
         isRecording = false
         isTranscribing = true
 
         coroutineScope.launch {
-            delay(1200) // Pure on-device STT & Diarization simulation
+            val title = "Voice Memo #${audioEntries.size + 1}"
+            val summary = "On-device recorded voice memo ($duration seconds)."
+            val actionItems = listOf("Review voice memo details", "Follow up on recorded points")
+
             val newEntry = AudioJournalEntry(
                 id = "audio-${System.currentTimeMillis()}",
-                title = "Voice Memo #${audioEntries.size + 1}",
-                durationSeconds = maxOf(3, recordingDuration),
+                title = title,
+                durationSeconds = duration,
                 createdAt = System.currentTimeMillis(),
-                summary = "Live transcribed on-device voice memo. Synthesized into actionable memory item.",
-                actionItems = listOf("Review voice memo details", "Follow up on recorded points"),
+                summary = summary,
+                actionItems = actionItems,
                 utterances = listOf(
-                    Utterance(speaker = "Speaker 1 (You)", text = "Captured on-device audio stream transcribed strictly with local neural STT model.", timestamp = "0:01")
+                    Utterance(speaker = "Speaker 1 (You)", text = "Voice recording ($duration s) captured securely on device.", timestamp = "0:01")
                 )
             )
 
-            // Also save to Memory Vault
+            // Save to Memory Vault
             edgeAI.memory.create(
                 title = newEntry.title,
                 content = newEntry.summary + "\nAction Items: " + newEntry.actionItems.joinToString(", "),
@@ -259,13 +236,48 @@ fun AudioJournalScreen(
                 )
             }
 
-            items(audioEntries, key = { it.id }) { entry ->
-                AudioJournalCard(
-                    entry = entry,
-                    onAskAboutMemo = {
-                        onNavigateToAsk("Summarize key action items from voice memo '${entry.title}'")
+            if (audioEntries.isEmpty()) {
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MicNone,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Text(
+                                text = "No Voice Memos Recorded",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Tap 'Start Voice Recording' above to record and index private on-device audio thoughts.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
                     }
-                )
+                }
+            } else {
+                items(audioEntries, key = { it.id }) { entry ->
+                    AudioJournalCard(
+                        entry = entry,
+                        onAskAboutMemo = {
+                            onNavigateToAsk("Summarize key action items from voice memo '${entry.title}'")
+                        }
+                    )
+                }
             }
         }
     }
