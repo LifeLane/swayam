@@ -385,17 +385,38 @@ class ModelProvisioningManager(
         if (!model.downloadUrl.startsWith("http://") && !model.downloadUrl.startsWith("https://")) {
             return@withContext false
         }
-        if (!model.downloadUrl.endsWith(".bin") && !model.downloadUrl.endsWith(".tflite") && !model.downloadUrl.endsWith(".task") && !model.downloadUrl.endsWith(".gguf")) { return@withContext false }
 
         try {
-            val url = URL(model.downloadUrl)
-            val conn = url.openConnection() as HttpURLConnection
-            conn.connectTimeout = 8000
-            conn.readTimeout = 15000
-            conn.requestMethod = "GET"
-            conn.connect()
+            var currentUrlStr = model.downloadUrl
+            var redirectCount = 0
+            var conn: HttpURLConnection? = null
 
-            if (conn.responseCode in 200..299) {
+            while (redirectCount < 5) {
+                val url = URL(currentUrlStr)
+                conn = url.openConnection() as HttpURLConnection
+                conn.connectTimeout = 30000
+                conn.readTimeout = 60000
+                conn.instanceFollowRedirects = true
+                conn.requestMethod = "GET"
+                conn.connect()
+
+                val status = conn.responseCode
+                if (status == HttpURLConnection.HTTP_MOVED_TEMP ||
+                    status == HttpURLConnection.HTTP_MOVED_PERM ||
+                    status == HttpURLConnection.HTTP_SEE_OTHER ||
+                    status == 307 || status == 308) {
+                    val loc = conn.getHeaderField("Location")
+                    if (!loc.isNullOrBlank()) {
+                        currentUrlStr = loc
+                        redirectCount++
+                        conn.disconnect()
+                        continue
+                    }
+                }
+                break
+            }
+
+            if (conn != null && conn.responseCode in 200..299) {
                 val contentLength = conn.contentLengthLong.takeIf { it > 0 } ?: model.sizeBytes
                 var downloaded = 0L
                 var lastTime = System.currentTimeMillis()
@@ -430,6 +451,8 @@ class ModelProvisioningManager(
                     }
                 }
 
+                conn.disconnect()
+
                 if (tmpFile.exists() && tmpFile.length() > 0) {
                     if (destinationFile.exists()) destinationFile.delete()
                     val moved = tmpFile.renameTo(destinationFile)
@@ -440,6 +463,7 @@ class ModelProvisioningManager(
                     return@withContext true
                 }
             }
+            conn?.disconnect()
         } catch (_: Exception) {
             // Failed network download
         }

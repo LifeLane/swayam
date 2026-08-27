@@ -75,7 +75,7 @@ object ModelRegistry {
             capabilities = setOf(ModelCapability.TEXT, ModelCapability.CHAT, ModelCapability.SUMMARIZATION, ModelCapability.REASONING),
             minimumRamMb = 2048L,
             preferredBackend = ExecutionBackend.GPU,
-            downloadUrl = "https://huggingface.co/google/gemma-2b-it-litert-int4",
+            downloadUrl = "https://storage.googleapis.com/mediapipe-models/llm_inference/gemma-2b-it-cpu-int4/float16/latest/gemma-2b-it-cpu-int4.bin",
             checksum = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             license = "Gemma Terms of Use",
             isInstalled = false,
