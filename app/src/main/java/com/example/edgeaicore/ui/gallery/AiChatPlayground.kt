@@ -89,71 +89,46 @@ fun AiChatPlayground(
 
         isGenerating = true
         activeGenerationJob = coroutineScope.launch {
-            delay(300) // First token latency
-
-            val responseContent = when {
-                currentText.lowercase().contains("gravity") -> """
-That's a fantastic and fundamental question! Gravity is one of the most important forces in the universe.
-
-Here is a comprehensive breakdown of what gravity is, how it works, and the key concepts associated with it:
-
----
-
-### 1. The Simple Definition
-Gravity is a fundamental force of nature that attracts any two objects with mass or energy toward each other with a force that is directly proportional to the product of their masses and inversely proportional to the square of the distance between their centers.
-
-In simpler terms: **Gravity is the "pull" that keeps everything in the universe together.**
-
----
-
-### 2. The Two Main Theories of Gravity
-The way we understand gravity depends on the scale at which we are looking:
-
-#### A. Newtonian Gravity (The Classical View)
-• **What it is:** Developed by Isaac Newton in the 17th century.
-• **Core Idea:** Gravity is a **force** that acts instantaneously between two masses. It describes *how* objects fall (e.g., why an apple falls to the ground).
-• **Key Concept:** Mass attracts mass.
-• **Limitation:** It works perfectly for most everyday situations (like throwing a ball), but it struggles to explain very fast movements or the behavior of very large objects (like the orbit of planets) accurately.
-
-#### B. General Relativity (The Modern View)
-• **What it is:** Developed by Albert Einstein in the early 20th century.
-• **Core Idea:** Gravity is **not a force** in the traditional sense, but rather a curvature of spacetime caused by mass and energy.
-• **Key Concept:** Matter tells spacetime how to curve, and curved spacetime tells matter how to move.
-• **Visual Analogy:** Imagine putting a heavy bowling ball on a trampoline. It creates a dip. A marble rolled nearby will naturally curve toward the bowling ball.
-                """.trimIndent()
-
-                currentText.lowercase().contains("quantum") -> """
-Quantum computing leverages the principles of quantum mechanics—namely superposition and entanglement—to process complex information exponentially faster than classical binary architectures for specific mathematical algorithms (such as Shor's and Grover's algorithms).
-                """.trimIndent()
-
-                else -> """
-On-device Gemma 4 E2B is executing natively on your mobile GPU via LiteRT-LM.
-
-• **Response:** $currentText
-• **Context Length:** 32K tokens supported
-• **Inference Latency:** ~23.4 ms/token
-• **Security & Privacy:** 100% on-device, zero telemetry or server dependency.
-                """.trimIndent()
-            }
-
-            // Stream response
             val assistantId = "assistant_${System.currentTimeMillis()}"
             var accumulated = ""
             messages.add(ChatMessage(id = assistantId, sender = MessageSender.ASSISTANT, text = ""))
 
-            val chunks = responseContent.split(" ")
-            for (word in chunks) {
-                if (!isGenerating) break
-                accumulated += if (accumulated.isEmpty()) word else " $word"
-                val lastIdx = messages.indexOfFirst { it.id == assistantId }
-                if (lastIdx != -1) {
-                    messages[lastIdx] = messages[lastIdx].copy(text = accumulated)
-                }
-                delay(20) // Streaming token delay
-            }
+            try {
+                val swayamReq = com.example.edgeaicore.core.swayam.SwayamRequest(
+                    prompt = currentText,
+                    privacyLevel = com.example.edgeaicore.core.common.PrivacyLevel.LOCAL_ONLY,
+                    preferredProvider = com.example.edgeaicore.core.common.AIProviderType.LOCAL,
+                    modelId = selectedModel,
+                    temperature = 0.7f,
+                    topK = 40,
+                    topP = 0.9f
+                )
 
-            isGenerating = false
-            listState.animateScrollToItem(messages.size - 1)
+                edgeAI.swayamCore.stream(swayamReq).collect { chunk ->
+                    if (!isGenerating) return@collect
+                    accumulated += chunk
+                    val lastIdx = messages.indexOfFirst { it.id == assistantId }
+                    if (lastIdx != -1) {
+                        messages[lastIdx] = messages[lastIdx].copy(text = accumulated)
+                    }
+                }
+            } catch (_: Exception) {
+                if (accumulated.isBlank()) {
+                    val fallback = com.example.edgeaicore.core.litertlm.SwayamNeuralReasoningEngine.generate(
+                        com.example.edgeaicore.core.litertlm.GenerationRequest(prompt = currentText),
+                        selectedModel
+                    )
+                    val lastIdx = messages.indexOfFirst { it.id == assistantId }
+                    if (lastIdx != -1) {
+                        messages[lastIdx] = messages[lastIdx].copy(text = fallback)
+                    }
+                }
+            } finally {
+                isGenerating = false
+                if (messages.isNotEmpty()) {
+                    listState.animateScrollToItem(messages.size - 1)
+                }
+            }
         }
     }
 

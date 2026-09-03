@@ -68,34 +68,38 @@ fun PromptLabPlayground(
         responseOutput = ""
 
         coroutineScope.launch {
-            delay(250)
-            val fullResponse = when (selectedTab) {
-                PromptLabTab.FREE_FORM -> {
-                    "On-Device Gemma 4 execution complete.\n\n$inputContent\n\nGenerated with 32K context window on mobile GPU."
+            try {
+                val formattedPrompt = when (selectedTab) {
+                    PromptLabTab.FREE_FORM -> inputContent
+                    PromptLabTab.REWRITE_TONE -> "Rewrite the following text in a $selectedTone tone:\n\n$inputContent"
+                    PromptLabTab.SUMMARIZE_TEXT -> "Summarize the following text in a $selectedLength format:\n\n$inputContent"
+                    PromptLabTab.CODE_SNIPPET -> "Write an optimized, production-ready code implementation for: $inputContent"
                 }
-                PromptLabTab.REWRITE_TONE -> {
-                    "**Rewritten in $selectedTone Tone:**\n\n" + when (selectedTone) {
-                        "Professional" -> "Please be advised regarding the following matter: $inputContent. We appreciate your attention and prompt collaboration."
-                        "Casual" -> "Hey! Just wanted to share: $inputContent. Hope that helps!"
-                        "Concise" -> "Summary: ${inputContent.take(100)}..."
-                        else -> "Persuasive version: $inputContent"
-                    }
-                }
-                PromptLabTab.SUMMARIZE_TEXT -> {
-                    "**Key Takeaways ($selectedLength):**\n\n• Core Subject: On-device Edge AI inference with zero network dependency.\n• Performance: LiteRT runtime achieves sub-25ms token latency.\n• Security: Data never leaves physical device storage."
-                }
-                PromptLabTab.CODE_SNIPPET -> {
-                    "```kotlin\n// Kotlin on-device Gemma implementation\nsuspend fun executePrompt(prompt: String): Flow<String> = flow {\n    val engine = LiteRtEngine.load(\"gemma-4-e2b-it.litert\")\n    engine.streamTokens(prompt).collect { token ->\n        emit(token)\n    }\n}\n```"
-                }
-            }
 
-            // Stream response
-            val words = fullResponse.split(" ")
-            for (w in words) {
-                responseOutput += if (responseOutput.isEmpty()) w else " $w"
-                delay(20)
+                val swayamReq = com.example.edgeaicore.core.swayam.SwayamRequest(
+                    prompt = formattedPrompt,
+                    privacyLevel = com.example.edgeaicore.core.common.PrivacyLevel.LOCAL_ONLY,
+                    preferredProvider = com.example.edgeaicore.core.common.AIProviderType.LOCAL,
+                    modelId = selectedModel,
+                    temperature = 0.7f,
+                    topK = 40,
+                    topP = 0.9f
+                )
+
+                edgeAI.swayamCore.stream(swayamReq).collect { chunk ->
+                    if (!isRunning) return@collect
+                    responseOutput += chunk
+                }
+            } catch (_: Exception) {
+                if (responseOutput.isBlank()) {
+                    responseOutput = com.example.edgeaicore.core.litertlm.SwayamNeuralReasoningEngine.generate(
+                        com.example.edgeaicore.core.litertlm.GenerationRequest(prompt = inputContent),
+                        selectedModel
+                    )
+                }
+            } finally {
+                isRunning = false
             }
-            isRunning = false
         }
     }
 
